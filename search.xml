@@ -19,11 +19,6 @@
 ]]></content>
   </entry>
   <entry>
-    <title>test test</title>
-    <url>/Blog/2020/05/25/test-test/</url>
-    <content><![CDATA[]]></content>
-  </entry>
-  <entry>
     <title>test_my_site</title>
     <url>/Blog/2020/05/25/test-my-site/</url>
     <content><![CDATA[]]></content>
@@ -33,5 +28,10 @@
       <tags>
         <tag>test</tag>
       </tags>
+  </entry>
+  <entry>
+    <title>test test</title>
+    <url>/Blog/2020/05/25/test-test/</url>
+    <content><![CDATA[]]></content>
   </entry>
 </search>
