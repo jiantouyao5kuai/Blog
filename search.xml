@@ -1,6 +1,65 @@
 <?xml version="1.0" encoding="utf-8"?>
 <search>
   <entry>
+    <title>代理模式、桥接模式、装饰模式器、适配器模式对比总结</title>
+    <url>/posts/9ec2c02f/</url>
+    <content><![CDATA[<h3 id="什么是结构型模式"><a href="#什么是结构型模式" class="headerlink" title="什么是结构型模式"></a>什么是结构型模式</h3><p>结构型模式主要总结了一些类或对象组合在一起的经典结构，这些经典的结构可以解决特定应用场景的问题。结构型模式包括：<strong>代理模式、桥接模式、装饰器模式、适配器模式、门面模式、组合模式、享元模式</strong>。</p>
+<h3 id="代理模式"><a href="#代理模式" class="headerlink" title="代理模式"></a>代理模式</h3><p>代理模式旨在不改变原始类（或叫被代理类）代码的情况下，通过引入代理类来给原始类附加功能。</p>
+<p><strong>动态代理</strong></p>
+<ul>
+<li>jdk动态代理</li>
+<li>cglib动态代理</li>
+</ul>
+<p><strong>代理模式的应用场景</strong></p>
+<ul>
+<li><strong>业务系统的非功能性需求开发</strong>：代理模式最常用的一个应用场景就是，在业务系统中开发一些非功能性需求，比如：<strong>监控、统计、鉴权、限流、事务、幂等、日志</strong>。我们将这些附加功能与业务功能解耦，放到代理类中统一处理，让程序员只需要关注业务方面的开发。</li>
+<li><strong>代理模式在 RPC、缓存中的应用</strong>：实际上，RPC 框架也可以看作一种代理模式，GoF 的《设计模式》一书中把它称作远程代理。通过远程代理，将网络通信、数据编解码等细节隐藏起来。客户端在使用 RPC 服务的时候，就像使用本地函数一样，无需了解跟服务器交互的细节。除此之外，RPC 服务的开发者也只需要开发业务逻辑，就像开发本地使用的函数一样，不需要关注跟客户端的交互细节。</li>
+</ul>
+<h3 id="桥接模式"><a href="#桥接模式" class="headerlink" title="桥接模式"></a>桥接模式</h3><p>在 GoF 的《设计模式》一书中，桥接模式被定义为：“<strong>将抽象和实现解耦，让它们可以独立变化。</strong>”在其他资料和书籍中，还有另外一种更加简单的理解方式：“一个类存在两个（或多个）独立变化的维度，我们通过组合的方式，让这两个（或多个）维度可以独立进行扩展。”</p>
+<p><strong>典型应用</strong></p>
+<ul>
+<li>jdbc驱动：jdbc的行为模式由DriverManager定义，实际和数据库的交互由Driver实现。从而达到相互解耦，独立扩展。</li>
+</ul>
+<h3 id="装饰器模式"><a href="#装饰器模式" class="headerlink" title="装饰器模式"></a>装饰器模式</h3><p>装饰器模式主要解决继承关系过于复杂的问题，通过组合来替代继承。它主要的作用是给原始类添加增强功能。这也是判断是否该用装饰器模式的一个重要的依据。除此之外，装饰器模式还有一个特点，那就是可以对原始类嵌套使用多个装饰器。为了满足这个应用场景，在设计的时候，装饰器类需要跟原始类继承相同的抽象类或者接口。</p>
+<p><strong>特点</strong></p>
+<ul>
+<li>装饰器类和原始类继承同样的父类，这样我们可以对原始类“嵌套”多个装饰器类。</li>
+<li>装饰器类是对功能的增强，这也是装饰器模式应用场景的一个重要特点。</li>
+</ul>
+<p><strong>典型应用</strong></p>
+<ul>
+<li>JDK IO流</li>
+</ul>
+<h3 id="适配器模式"><a href="#适配器模式" class="headerlink" title="适配器模式"></a>适配器模式</h3><p>顾名思义，这个模式就是用来做适配的，它将不兼容的接口转换为可兼容的接口，让原本由于接口不兼容而不能一起工作的类可以一起工作。对于这个模式，有一个经常被拿来解释它的例子，就是 USB 转接头充当适配器，把两种不兼容的接口，通过转接变得可以一起工作。</p>
+<p><strong>使用场景</strong></p>
+<ul>
+<li>封装有缺陷的接口设计</li>
+<li>统一多个类的接口设计</li>
+<li>替换依赖的外部系统</li>
+<li>兼容老版本接口</li>
+<li>适配不同格式的数据</li>
+</ul>
+<p><strong>典型应用</strong></p>
+<ul>
+<li>slf4j日志框架</li>
+</ul>
+<h3 id="代理、桥接、装饰器、适配器-4-种设计模式的区别"><a href="#代理、桥接、装饰器、适配器-4-种设计模式的区别" class="headerlink" title="代理、桥接、装饰器、适配器 4 种设计模式的区别"></a>代理、桥接、装饰器、适配器 4 种设计模式的区别</h3><p>尽管代码结构相似，但这 4 种设计模式的用意完全不同，也就是说要解决的问题、应用场景不同，这也是它们的主要区别。</p>
+<ul>
+<li><strong>代理模式</strong>：代理模式在不改变原始类接口的条件下，为原始类定义一个代理类，主要目的是控制访问，而非加强功能，这是它跟装饰器模式最大的不同。</li>
+<li><strong>桥接模式</strong>：桥接模式的目的是将接口部分和实现部分分离，从而让它们可以较为容易、也相对独立地加以改变。</li>
+<li><strong>装饰器模式</strong>：装饰者模式在不改变原始类接口的情况下，对原始类功能进行增强，并且支持多个装饰器的嵌套使用。</li>
+<li><strong>适配器模式</strong>：适配器模式是一种事后的补救策略。适配器提供跟原始类不同的接口，而代理模式、装饰器模式提供的都是跟原始类相同的接口。</li>
+</ul>
+<p><strong>Ps：总结自王争老师极客时间设计模式课程，侵删。</strong></p>
+]]></content>
+      <categories>
+        <category>设计模式</category>
+      </categories>
+      <tags>
+        <tag>结构性模式</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>spring-dbunit使用指南</title>
     <url>/posts/f363124e/</url>
     <content><![CDATA[<h3 id="目标："><a href="#目标：" class="headerlink" title="目标："></a>目标：</h3><p>​    帮助你些一个可以多次重复运行且不依赖数据库现在数据的单元测试。<br>​    官方文档：<a href="https://springtestdbunit.github.io/spring-test-dbunit/index.html" target="_blank" rel="noopener">传送门</a></p>
@@ -72,7 +131,7 @@
       </tags>
   </entry>
   <entry>
-    <title>创建型-单例模式</title>
+    <title>单例模式-创建型</title>
     <url>/posts/545bbc59/</url>
     <content><![CDATA[<h4 id="为什么要使用单例模式"><a href="#为什么要使用单例模式" class="headerlink" title="为什么要使用单例模式"></a>为什么要使用单例模式</h4><ul>
 <li>解决共享变量问题</li>
@@ -102,12 +161,163 @@
 <h4 id="单例的替代解决方案"><a href="#单例的替代解决方案" class="headerlink" title="单例的替代解决方案"></a>单例的替代解决方案</h4><p>为了保证全局唯一，除了使用单例，我们还可以用静态方法来实现。不过，静态方法这种实现思路，并不能解决我们之前提到的问题。如果要完全解决这些问题，我们可能要从根上，寻找其他方式来实现全局唯一类了。比如，通过工厂模式、IOC 容器（比如 Spring IOC 容器）来保证，由程序员自己来保证（自己在编写代码的时候自己保证不要创建两个类对象）。</p>
 <h4 id="集群下的单例模式"><a href="#集群下的单例模式" class="headerlink" title="集群下的单例模式"></a>集群下的单例模式</h4><p>我们需要把这个单例对象序列化并存储到外部共享存储区（比如文件）。进程在使用这个单例对象的时候，需要先从外部共享存储区中将它读取到内存，并反序列化成对象，然后再使用，使用完成之后还需要再存储回外部共享存储区。</p>
 <p>为了保证任何时刻，在进程间都只有一份对象存在，一个进程在获取到对象之后，需要对对象加锁，避免其他进程再将其获取。在进程使用完这个对象之后，还需要显式地将对象从内存中删除，并且释放对对象的加锁。</p>
+<p><strong>Ps：总结自王争老师极客时间设计模式课程，侵删。</strong></p>
 ]]></content>
       <categories>
-        <category>design-pattern</category>
+        <category>设计模式</category>
       </categories>
       <tags>
-        <tag>create</tag>
+        <tag>创建型模式</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>设计原则总结</title>
+    <url>/posts/a151c9f2/</url>
+    <content><![CDATA[<h4 id="SRP-（Single-Responsibity-Principle）单一职责"><a href="#SRP-（Single-Responsibity-Principle）单一职责" class="headerlink" title="SRP （Single Responsibity Principle）单一职责"></a>SRP （Single Responsibity Principle）单一职责</h4><p>英文原文：<strong><em>A class or module should have a single reponsibility。</em></strong>一个类或者模块只负责完成一个职责（或者功能）。</p>
+<ol>
+<li><p><strong>如何理解单一职责原则（SRP）？</strong><br>一个类只负责完成一个职责或者功能。不要设计大而全的类，要设计粒度小、功能单一的类。单一职责原则是为了实现代码高内聚、低耦合，提高代码的复用性、可读性、可维护性。</p>
+</li>
+<li><p><strong>如何判断类的职责是否足够单一？</strong><br>不同的应用场景、不同阶段的需求背景、不同的业务层面，对同一个类的职责是否单一，可能会有不同的判定结果。</p>
+<p>一些侧面的判断指标更具有指导意义和可执行性，比如，出现下面这些情况就有可能说明这类的设计不满足单一职责原则：</p>
+</li>
+</ol>
+<ul>
+<li>类中的代码行数、函数或者属性过多；</li>
+<li>类依赖的其他类过多，或者依赖类的其他类过多；</li>
+<li>私有方法过多；比较难给类起一个合适的名字；</li>
+<li>类中大量的方法都是集中操作类中的某几个属性。</li>
+</ul>
+<ol start="3">
+<li><p><strong>类的职责是否设计得越单一越好？</strong><br>单一职责原则通过避免设计大而全的类，避免将不相关的功能耦合在一起，来提高类的内聚性。</p>
+<p>同时，类职责单一，类依赖的和被依赖的其他类也会变少，减少了代码的耦合性，以此来实现代码的高内聚、低耦合。但是，如果拆分得过细，实际上会适得其反，反倒会降低内聚性，也会影响代码的可维护性。</p>
+</li>
+</ol>
+<h4 id="OCP（Open-Closed-Principle）开闭原则"><a href="#OCP（Open-Closed-Principle）开闭原则" class="headerlink" title="OCP（Open Closed Principle）开闭原则"></a>OCP（Open Closed Principle）开闭原则</h4><p>英文原文：<strong><em>software entities (modules, classes, functions, etc.) should be open for extension , but closed for modification。</em></strong>我们把它翻译成中文就是：软件实体（模块、类、方法等）应该“对扩展开放、对修改关闭”。</p>
+<ol>
+<li><p><strong>如何理解“对扩展开放、对修改关闭”？</strong><br>添加一个新的功能，应该是通过在已有代码基础上扩展代码（新增模块、类、方法、属性等），而非修改已有代码（修改模块、类、方法、属性等）的方式来完成。</p>
+<p>关于定义，我们有两点要注意。第一点是，开闭原则并不是说完全杜绝修改，而是以最小的修改代码的代价来完成新功能的开发。第二点是，同样的代码改动，在粗代码粒度下，可能被认定为“修改”；在细代码粒度下，可能又被认定为“扩展”。</p>
+</li>
+<li><p><strong>如何做到“对扩展开放、修改关闭”？</strong><br>我们要时刻具备扩展意识、抽象意识、封装意识。</p>
+<p>在写代码的时候，我们要多花点时间思考一下，这段代码未来可能有哪些需求变更，如何设计代码结构，事先留好扩展点，以便在未来需求变更的时候，在不改动代码整体结构、做到最小代码改动的情况下，将新的代码灵活地插入到扩展点上。很多设计原则、设计思想、设计模式，都是以提高代码的扩展性为最终目的的。</p>
+<p>特别是 23 种经典设计模式，大部分都是为了解决代码的扩展性问题而总结出来的，都是以开闭原则为指导原则的。最常用来提高代码扩展性的方法有：多态、依赖注入、基于接口而非实现编程，以及大部分的设计模式（比如，装饰、策略、模板、职责链、状态）。</p>
+</li>
+</ol>
+<h4 id="LSP（Liskov-Substitution-Principle）里氏替换原则"><a href="#LSP（Liskov-Substitution-Principle）里氏替换原则" class="headerlink" title="LSP（Liskov Substitution Principle）里氏替换原则"></a>LSP（Liskov Substitution Principle）里氏替换原则</h4><p>英文原文：<strong><em>Functions that use pointers of references to base classes must be able to use objects of derived classes without knowing it。</em></strong>子类对象（object of subtype/derived class）能够替换程序（program）中父类对象（object of base/parent class）出现的任何地方，并且保证原来程序的逻辑行为（behavior）不变及正确性不被破坏。</p>
+<p><strong><em>哪些代码明显违背了 LSP？</em></strong></p>
+<ol>
+<li><p><strong>子类违背父类声明要实现的功能</strong><br>父类中提供的 sortOrdersByAmount() 订单排序函数，是按照金额从小到大来给订单排序的，而子类重写这个 sortOrdersByAmount() 订单排序函数之后，是按照创建日期来给订单排序的。那子类的设计就违背里式替换原则。</p>
+</li>
+<li><p><strong>子类违背父类对输入、输出、异常的约定</strong><br>在父类中，某个函数约定：运行出错的时候返回 null；获取数据为空的时候返回空集合（empty collection）。而子类重载函数之后，实现变了，运行出错返回异常（exception），获取不到数据返回 null。那子类的设计就违背里式替换原则。</p>
+<p>在父类中，某个函数约定，输入数据可以是任意整数，但子类实现的时候，只允许输入数据是正整数，负数就抛出，也就是说，子类对输入的数据的校验比父类更加严格，那子类的设计就违背了里式替换原则。</p>
+<p>在父类中，某个函数约定，只会抛出 ArgumentNullException 异常，那子类的设计实现中只允许抛出 ArgumentNullException 异常，任何其他异常的抛出，都会导致子类违背里式替换原则。</p>
+</li>
+<li><p><strong>子类违背父类注释中所罗列的任何特殊说明</strong><br>父类中定义的 withdraw() 提现函数的注释是这么写的：“用户的提现金额不得超过账户余额……”，而子类重写 withdraw() 函数之后，针对 VIP 账号实现了透支提现的功能，也就是提现金额可以大于账户余额，那这个子类的设计也是不符合里式替换原则的。</p>
+</li>
+</ol>
+<p>以上便是三种典型的违背里式替换原则的情况。除此之外，判断子类的设计实现是否违背里式替换原则，还有一个小窍门，那就是拿父类的单元测试去验证子类的代码。如果某些单元测试运行失败，就有可能说明，子类的设计实现没有完全地遵守父类的约定，子类有可能违背了里式替换原则。</p>
+<p><strong>总结：</strong></p>
+<p>​        里式替换原则是用来指导，继承关系中子类该如何设计的一个原则。理解里式替换原则，最核心的就是理解“design by contract，按照协议来设计”这几个字。父类定义了函数的“约定”（或者叫协议），那子类可以改变函数的内部实现逻辑，但不能改变函数原有的“约定”。这里的约定包括：函数声明要实现的功能；对输入、输出、异常的约定；甚至包括注释中所罗列的任何特殊说明。</p>
+<p>​        理解这个原则，我们还要弄明白里式替换原则跟多态的区别。虽然从定义描述和代码实现上来看，多态和里式替换有点类似，但它们关注的角度是不一样的。多态是面向对象编程的一大特性，也是面向对象编程语言的一种语法。它是一种代码实现的思路。而里式替换是一种设计原则，用来指导继承关系中子类该如何设计，子类的设计要保证在替换父类的时候，不改变原有程序的逻辑及不破坏原有程序的正确性。</p>
+<h4 id="ISP（Interface-Segregation-Principle）接口隔离原则"><a href="#ISP（Interface-Segregation-Principle）接口隔离原则" class="headerlink" title="ISP（Interface Segregation Principle）接口隔离原则"></a>ISP（Interface Segregation Principle）接口隔离原则</h4><p>英文原文：“<strong><em>Clients should not be forced to depend upon interfaces that they do not use。</em></strong>”直译成中文的话就是：客户端不应该强迫依赖它不需要的接口。其中的“客户端”，可以理解为接口的调用者或者使用者。</p>
+<ol>
+<li><strong>如何理解“接口隔离原则”？</strong><br>理解“接口隔离原则”的重点是理解其中的“接口”二字。这里有三种不同的理解。</li>
+</ol>
+<ul>
+<li>如果把“接口”理解为一组接口集合，可以是某个微服务的接口，也可以是某个类库的接口等。如果部分接口只被部分调用者使用，我们就需要将这部分接口隔离出来，单独给这部分调用者使用，而不强迫其他调用者也依赖这部分不会被用到的接口。</li>
+<li>如果把“接口”理解为单个 API 接口或函数，部分调用者只需要函数中的部分功能，那我们就需要把函数拆分成粒度更细的多个函数，让调用者只依赖它需要的那个细粒度函数。</li>
+<li>如果把“接口”理解为 OOP 中的接口，也可以理解为面向对象编程语言中的接口语法。那接口的设计要尽量单一，不要让接口的实现类和调用者，依赖不需要的接口函数。</li>
+</ul>
+<ol start="2">
+<li><p><strong>接口隔离原则与单一职责原则的区别单一职责原则针对的是模块、类、接口的设计。</strong><br>接口隔离原则相对于单一职责原则，一方面更侧重于接口的设计，另一方面它的思考角度也是不同的。</p>
+<p>接口隔离原则提供了一种判断接口的职责是否单一的标准：通过调用者如何使用接口来间接地判定。如果调用者只使用部分接口或接口的部分功能，那接口的设计就不够职责单一。</p>
+</li>
+</ol>
+<h4 id="DIP（Dependency-Inversion-Principle）依赖反转"><a href="#DIP（Dependency-Inversion-Principle）依赖反转" class="headerlink" title="DIP（Dependency Inversion Principle）依赖反转"></a>DIP（Dependency Inversion Principle）依赖反转</h4><p>英文原文：<strong>High-level modules shouldn’t depend on low-level modules. Both modules should depend on abstractions. In addition, abstractions shouldn’t depend on details. Details depend on abstractions</strong>.翻译成中文，大概意思就是：高层模块（high-level modules）不要依赖低层模块（low-level）。高层模块和低层模块应该通过抽象（abstractions）来互相依赖。除此之外，抽象（abstractions）不要依赖具体实现细节（details），具体实现细节（details）依赖抽象（abstractions）。</p>
+<ol>
+<li><strong>控制反转</strong><br>实际上，控制反转是一个比较笼统的设计思想，并不是一种具体的实现方法，一般用来指导框架层面的设计。这里所说的“控制”指的是对程序执行流程的控制，而“反转”指的是在没有使用框架之前，程序员自己控制整个程序的执行。在使用框架之后，整个程序的执行流程通过框架来控制。流程的控制权从程序员“反转”给了框架。</li>
+<li><strong>依赖注入</strong><br>依赖注入和控制反转恰恰相反，它是一种具体的编码技巧。我们不通过 new 的方式在类内部创建依赖类的对象，而是将依赖的类对象在外部创建好之后，通过构造函数、函数参数等方式传递（或注入）给类来使用。</li>
+<li><strong>依赖注入框架</strong><br>我们通过依赖注入框架提供的扩展点，简单配置一下所有需要的类及其类与类之间依赖关系，就可以实现由框架来自动创建对象、管理对象的生命周期、依赖注入等原本需要程序员来做的事情。</li>
+<li><strong>依赖反转原则</strong><br>依赖反转原则也叫作依赖倒置原则。这条原则跟控制反转有点类似，主要用来指导框架层面的设计。高层模块不依赖低层模块，它们共同依赖同一个抽象。抽象不要依赖具体实现细节，具体实现细节依赖抽象。</li>
+</ol>
+<h4 id="KISS（Keep-It-Simple-And-Stupid）尽量保持简单"><a href="#KISS（Keep-It-Simple-And-Stupid）尽量保持简单" class="headerlink" title="KISS（Keep It Simple And Stupid）尽量保持简单"></a>KISS（Keep It Simple And Stupid）尽量保持简单</h4><h4 id="YAGNI（You-Ain’t-Gonna-Need-It）不要过度设计"><a href="#YAGNI（You-Ain’t-Gonna-Need-It）不要过度设计" class="headerlink" title="YAGNI（You Ain’t Gonna Need It）不要过度设计"></a>YAGNI（You Ain’t Gonna Need It）不要过度设计</h4><p>KISS 原则是保持代码可读和可维护的重要手段。KISS 原则中的“简单”并不是以代码行数来考量的。代码行数越少并不代表代码越简单，我们还要考虑逻辑复杂度、实现难度、代码的可读性等。</p>
+<p>而且，本身就复杂的问题，用复杂的方法解决，并不违背 KISS 原则。除此之外，同样的代码，在某个业务场景下满足 KISS 原则，换一个应用场景可能就不满足了。对于如何写出满足 KISS 原则的代码，我还总结了下面几条指导原则：</p>
+<ul>
+<li>不要使用同事可能不懂的技术来实现代码；</li>
+<li>不要重复造轮子，要善于使用已经有的工具类库；</li>
+<li>不要过度优化。</li>
+</ul>
+<h4 id="DRY（Dont-Repeat-Yourself）不重复原则"><a href="#DRY（Dont-Repeat-Yourself）不重复原则" class="headerlink" title="DRY（Dont Repeat Yourself）不重复原则"></a>DRY（Dont Repeat Yourself）不重复原则</h4><ol>
+<li><strong>DRY 原则三种代码重复的情况：</strong><br>实现逻辑重复、功能语义重复、代码执行重复。实现逻辑重复，但功能语义不重复的代码，并不违反 DRY 原则。实现逻辑不重复，但功能语义重复的代码，也算是违反 DRY 原则。除此之外，代码执行重复也算是违反 DRY 原则。</li>
+<li><strong>代码复用性今天，我们讲到提高代码可复用性的一些方法，有以下 7 点：</strong></li>
+</ol>
+<ul>
+<li>减少代码耦合</li>
+</ul>
+<ul>
+<li>满足单一职责原则</li>
+<li>模块化业务与非业务逻辑分离</li>
+<li>通用代码下沉</li>
+<li>继承、多态、抽象、封装</li>
+<li>应用模板等设计模式</li>
+</ul>
+<h4 id="LOD（Low-Of-Demeter）迪米特法则-又叫（The-Least-Knowledge-Principle）最少知识原则"><a href="#LOD（Low-Of-Demeter）迪米特法则-又叫（The-Least-Knowledge-Principle）最少知识原则" class="headerlink" title="LOD（Low Of Demeter）迪米特法则 又叫（The Least Knowledge Principle）最少知识原则"></a>LOD（Low Of Demeter）迪米特法则 又叫（The Least Knowledge Principle）最少知识原则</h4><p>英文原文：<strong>Each unit should have only limited knowledge about other units: only units “closely” related to the current unit. Or: Each unit should only talk to its friends; Don’t talk to strangers.</strong>每个模块（unit）只应该了解那些与它关系密切的模块（units: only units “closely” related to the current unit）的有限知识（knowledge）。或者说，每个模块只和自己的朋友“说话”（talk），不和陌生人“说话”（talk）。</p>
+<ol>
+<li><p><strong>如何理解“高内聚、松耦合”？</strong><br>“高内聚、松耦合”是一个非常重要的设计思想，能够有效提高代码的可读性和可维护性，缩小功能改动导致的代码改动范围。</p>
+<p>“高内聚”用来指导类本身的设计，“松耦合”用来指导类与类之间依赖关系的设计。</p>
+<p>所谓高内聚，就是指相近的功能应该放到同一个类中，不相近的功能不要放到同一类中。相近的功能往往会被同时修改，放到同一个类中，修改会比较集中。所谓松耦合指的是，在代码中，类与类之间的依赖关系简单清晰。即使两个类有依赖关系，一个类的代码改动也不会或者很少导致依赖类的代码改动。</p>
+</li>
+<li><p><strong>如何理解“迪米特法则”？</strong><br>不该有直接依赖关系的类之间，不要有依赖；有依赖关系的类之间，尽量只依赖必要的接口。迪米特法则是希望减少类之间的耦合，让类越独立越好。每个类都应该少了解系统的其他部分。一旦发生变化，需要了解这一变化的类就会比较少。</p>
+</li>
+</ol>
+<p><strong>Ps：总结自王争老师极客时间设计模式课程，侵删。</strong></p>
+]]></content>
+      <categories>
+        <category>设计模式</category>
+      </categories>
+      <tags>
+        <tag>设计原则</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>工厂模式-创建型</title>
+    <url>/posts/21f4dc22/</url>
+    <content><![CDATA[<h3 id="简单工厂（静态工厂）"><a href="#简单工厂（静态工厂）" class="headerlink" title="简单工厂（静态工厂）"></a>简单工厂（静态工厂）</h3><p>第一种情况：类似规则配置解析的例子，代码中存在 if-else 分支判断，动态地根据不同的类型创建不同的对象。针对这种情况，我们就考虑使用工厂模式，将这一大坨 if-else 创建对象的代码抽离出来，放到工厂类中。</p>
+<p>还有一种情况，尽管我们不需要根据不同的类型创建不同的对象，但是，单个对象本身的创建过程比较复杂，比如前面提到的要组合其他类对象，做各种初始化操作。在这种情况下，我们也可以考虑使用工厂模式，将对象的创建过程封装到工厂类中。</p>
+<h3 id="工厂方法"><a href="#工厂方法" class="headerlink" title="工厂方法"></a>工厂方法</h3><p>基于简单工厂的抽象，解决简单工厂的if-else判断问题，使用抽象和多态将不同的创建方法分离到不同的类中。</p>
+<h3 id="抽象工厂"><a href="#抽象工厂" class="headerlink" title="抽象工厂"></a>抽象工厂</h3><p>可以同时创建不同产品族的对象。</p>
+<h4 id="工厂模式的作用"><a href="#工厂模式的作用" class="headerlink" title="工厂模式的作用"></a>工厂模式的作用</h4><ul>
+<li>封装变化：创建逻辑有可能变化，封装成工厂类之后，创建逻辑的变更对调用者透明。</li>
+<li>代码复用：创建代码抽离到独立的工厂类之后可以复用。</li>
+<li>隔离复杂性：封装复杂的创建逻辑，调用者无需了解如何创建对象。</li>
+<li>控制复杂度：将创建代码抽离出来，让原本的函数或类职责更单一，代码更简洁。</li>
+</ul>
+<h4 id="工厂模式与DI"><a href="#工厂模式与DI" class="headerlink" title="工厂模式与DI"></a>工厂模式与DI</h4><p>Dependency Injection是工厂模式的扩展，拥有比工厂模式更多的功能，如配置解析和对象生命周期管理。其核心逻辑主要包括：配置文件解析，以及根据配置文件通过“反射”语法来创建对象。其中，创建对象的过程就应用到了我们在学的工厂模式。对象创建、组装、管理完全有 DI 容器来负责，跟具体业务代码解耦，让程序员聚焦在业务代码的开发上。</p>
+<p><strong>Ps：总结自王争老师极客时间设计模式课程，侵删。</strong></p>
+]]></content>
+      <categories>
+        <category>设计模式</category>
+      </categories>
+      <tags>
+        <tag>创建型模式</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>构造器模式-创建型</title>
+    <url>/posts/5e6bf39b/</url>
+    <content><![CDATA[<h4 id="为什么需要建造者模式"><a href="#为什么需要建造者模式" class="headerlink" title="为什么需要建造者模式"></a>为什么需要建造者模式</h4><p>如果一个类中有很多属性，为了避免构造函数的参数列表过长，影响代码的可读性和易用性，我们可以通过构造函数配合 set() 方法来解决。但是，如果存在下面情况中的任意一种，我们就要考虑使用建造者模式了。</p>
+<ul>
+<li>我们把类的必填属性放到构造函数中，强制创建对象的时候就设置。如果必填的属性有很多，把这些必填属性都放到构造函数中设置，那构造函数就又会出现参数列表很长的问题。如果我们把必填属性通过 set() 方法设置，那校验这些必填属性是否已经填写的逻辑就无处安放了。</li>
+<li>如果类的属性之间有一定的依赖关系或者约束条件，我们继续使用构造函数配合 set() 方法的设计思路，那这些依赖关系或约束条件的校验逻辑就无处安放了。</li>
+<li>如果我们希望创建不可变对象，也就是说，对象在创建好之后，就不能再修改内部的属性值，要实现这个功能，我们就不能在类中暴露 set() 方法。构造函数配合 set() 方法来设置属性值的方式就不适用了。</li>
+</ul>
+<h4 id="工厂模式和建造者模式的区别"><a href="#工厂模式和建造者模式的区别" class="headerlink" title="工厂模式和建造者模式的区别"></a>工厂模式和建造者模式的区别</h4><p>工厂模式是用来创建不同但是相关类型的对象（继承同一父类或者接口的一组子类），由给定的参数来决定创建哪种类型的对象。建造者模式是用来创建一种类型的复杂对象，可以通过设置不同的可选参数，“定制化”地创建不同的对象。</p>
+<p><strong>Ps：总结自王争老师极客时间设计模式课程，侵删。</strong></p>
+]]></content>
+      <categories>
+        <category>设计模式</category>
+      </categories>
+      <tags>
+        <tag>创建型模式</tag>
       </tags>
   </entry>
 </search>
