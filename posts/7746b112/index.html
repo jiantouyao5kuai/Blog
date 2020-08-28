@@ -20,20 +20,25 @@
     var CONFIG = {"hostname":"lei-blog.tech","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
   </script>
 
-  <meta name="description" content="为什么要使用单例模式 解决共享变量问题 资源重复创建的浪费资源问题 有些数据在系统中只应该保存一份，就比较适合设计为单例类">
+  <meta name="description" content="缓存使用得当，可以降低应用的响应时间，减少数据库压力同时节约资源成本。 考虑缓存使用方式前应该思考的问题：">
 <meta property="og:type" content="article">
-<meta property="og:title" content="单例模式-创建型">
-<meta property="og:url" content="http://lei-blog.tech/posts/545bbc59/index.html">
+<meta property="og:title" content="cache-patterns">
+<meta property="og:url" content="http://lei-blog.tech/posts/7746b112/index.html">
 <meta property="og:site_name" content="jinlei&#39;s blog">
-<meta property="og:description" content="为什么要使用单例模式 解决共享变量问题 资源重复创建的浪费资源问题 有些数据在系统中只应该保存一份，就比较适合设计为单例类">
+<meta property="og:description" content="缓存使用得当，可以降低应用的响应时间，减少数据库压力同时节约资源成本。 考虑缓存使用方式前应该思考的问题：">
 <meta property="og:locale" content="zh_CN">
-<meta property="article:published_time" content="2020-06-24T12:34:22.000Z">
-<meta property="article:modified_time" content="2020-07-20T03:29:36.403Z">
+<meta property="og:image" content="https://cdn.nlark.com/yuque/0/2020/png/132169/1597908933873-916368d1-e44a-4091-af1c-b62bacfa8ebd.png">
+<meta property="og:image" content="https://cdn.nlark.com/yuque/0/2020/png/132169/1597909228330-aeadce11-b6ff-42fd-91c1-940c3afd8726.png">
+<meta property="og:image" content="https://cdn.nlark.com/yuque/0/2020/png/132169/1597909367787-b2bf75cb-7d68-4c33-aebe-c339d5dfc583.png">
+<meta property="og:image" content="https://cdn.nlark.com/yuque/0/2020/png/132169/1597909993763-cbd1de82-32b6-45d1-8de2-c5f0bfdc4d80.png">
+<meta property="article:published_time" content="2020-08-28T07:33:22.000Z">
+<meta property="article:modified_time" content="2020-08-28T07:38:12.069Z">
 <meta property="article:author" content="Jin Lei">
-<meta property="article:tag" content="创建型模式">
+<meta property="article:tag" content="cache-patterns">
 <meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://cdn.nlark.com/yuque/0/2020/png/132169/1597908933873-916368d1-e44a-4091-af1c-b62bacfa8ebd.png">
 
-<link rel="canonical" href="http://lei-blog.tech/posts/545bbc59/">
+<link rel="canonical" href="http://lei-blog.tech/posts/7746b112/">
 
 
 <script id="page-configurations">
@@ -46,7 +51,7 @@
   };
 </script>
 
-  <title>单例模式-创建型 | jinlei's blog</title>
+  <title>cache-patterns | jinlei's blog</title>
   
 
 
@@ -184,7 +189,7 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="http://lei-blog.tech/posts/545bbc59/">
+    <link itemprop="mainEntityOfPage" href="http://lei-blog.tech/posts/7746b112/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avator.jpeg">
@@ -197,7 +202,7 @@
     </span>
       <header class="post-header">
         <h1 class="post-title" itemprop="name headline">
-          单例模式-创建型
+          cache-patterns
         </h1>
 
         <div class="post-meta">
@@ -206,23 +211,17 @@
                 <i class="far fa-calendar"></i>
               </span>
               <span class="post-meta-item-text">发表于</span>
+              
 
-              <time title="创建时间：2020-06-24 20:34:22" itemprop="dateCreated datePublished" datetime="2020-06-24T20:34:22+08:00">2020-06-24</time>
+              <time title="创建时间：2020-08-28 15:33:22 / 修改时间：15:38:12" itemprop="dateCreated datePublished" datetime="2020-08-28T15:33:22+08:00">2020-08-28</time>
             </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2020-07-20 11:29:36" itemprop="dateModified" datetime="2020-07-20T11:29:36+08:00">2020-07-20</time>
-              </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
                 <i class="far fa-folder"></i>
               </span>
               <span class="post-meta-item-text">分类于</span>
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E8%AE%BE%E8%AE%A1%E6%A8%A1%E5%BC%8F/" itemprop="url" rel="index"><span itemprop="name">设计模式</span></a>
+                  <a href="/categories/cache/" itemprop="url" rel="index"><span itemprop="name">cache</span></a>
                 </span>
             </span>
 
@@ -239,7 +238,7 @@
                 <i class="far fa-file-word"></i>
               </span>
                 <span class="post-meta-item-text">本文字数：</span>
-              <span>975</span>
+              <span>892</span>
             </span>
             <span class="post-meta-item" title="阅读时长">
               <span class="post-meta-item-icon">
@@ -258,35 +257,48 @@
     <div class="post-body" itemprop="articleBody">
 
       
-        <h4 id="为什么要使用单例模式"><a href="#为什么要使用单例模式" class="headerlink" title="为什么要使用单例模式"></a>为什么要使用单例模式</h4><ul>
-<li>解决共享变量问题</li>
-<li>资源重复创建的浪费资源问题</li>
-<li>有些数据在系统中只应该保存一份，就比较适合设计为单例类</li>
+        <p>缓存使用得当，可以降低应用的响应时间，减少数据库压力同时节约资源成本。</p>
+<p>考虑缓存使用方式前应该思考的问题：</p>
+<ul>
+<li>系统是读多写少？</li>
+<li>系统是写多读少？</li>
+<li>数据变化频率高吗？</li>
 </ul>
-<h4 id="如何实现一个单例"><a href="#如何实现一个单例" class="headerlink" title="如何实现一个单例"></a>如何实现一个单例</h4><ul>
-<li>构造函数private</li>
-<li>创建对象时是否延迟加载</li>
-<li>创建对象时是否线程安全</li>
-<li>获取对象时性能是否高</li>
+<p>两大类：</p>
+<ul>
+<li>cache-aside：数据快照</li>
+<li>cache-as-sor：缓存即为数据源</li>
 </ul>
-<h4 id="单例的几种实现方式"><a href="#单例的几种实现方式" class="headerlink" title="单例的几种实现方式"></a>单例的几种实现方式</h4><ul>
-<li><strong>饿汉式</strong>：饿汉式的实现方式，在类加载的期间，就已经将 instance 静态实例初始化好了，所以，instance 实例的创建是线程安全的。不过，这样的实现方式不支持延迟加载实例。</li>
-<li><strong>懒汉式</strong>：懒汉式相对于饿汉式的优势是支持延迟加载。这种实现方式会导致频繁加锁、释放锁，以及并发度低等问题，频繁的调用会产生性能瓶颈。</li>
-<li><strong>双检锁</strong>：双重检测实现方式既支持延迟加载、又支持高并发的单例实现方式。只要 instance 被创建之后，再调用 getInstance() 函数都不会进入到加锁逻辑中。所以，这种实现方式解决了懒汉式并发度低的问题。</li>
-<li><strong>静态内部类</strong>：利用 Java 的静态内部类来实现单例。这种实现方式，既支持延迟加载，也支持高并发，实现起来也比双重检测简单。</li>
-<li><strong>枚举</strong>：最简单的实现方式，基于枚举类型的单例实现。这种实现方式通过 Java 枚举类型本身的特性，保证了实例创建的线程安全性和实例的唯一性。</li>
+<h2 id="Cache-Aside"><a href="#Cache-Aside" class="headerlink" title="Cache-Aside"></a>Cache-Aside</h2><p><img src="https://cdn.nlark.com/yuque/0/2020/png/132169/1597908933873-916368d1-e44a-4091-af1c-b62bacfa8ebd.png" alt="image.png"></p>
+<ul>
+<li>cashe-aside模式适用于读多的工作场景。</li>
+<li>使用caceh-aside模式的系统对缓存命中失败有一定的容错率。</li>
+<li>通过应用来访问缓存和数据库可以解耦数据库和缓存，不需要缓存和数据库的结构保持一致。</li>
+<li>通过TTL时间来保证cache和database的数据一致性。如果数据一致性需要强一致的话，需要主动失效缓存或者使用其他策略。</li>
 </ul>
-<h4 id="单例存在的问题"><a href="#单例存在的问题" class="headerlink" title="单例存在的问题"></a>单例存在的问题</h4><ul>
-<li>单例对OOP 特性的支持不友好</li>
-<li>单例会隐藏类之间的依赖关系</li>
-<li>单例对代码的扩展性不友好</li>
-<li>单例对代码的可测试性不友好</li>
-<li>单例不支持有参数的构造函数</li>
+<h2 id="Read-Through-Cache"><a href="#Read-Through-Cache" class="headerlink" title="Read-Through Cache"></a>Read-Through Cache</h2><p><img src="https://cdn.nlark.com/yuque/0/2020/png/132169/1597909228330-aeadce11-b6ff-42fd-91c1-940c3afd8726.png" alt="image.png"></p>
+<ul>
+<li>cache-aside通过application来访问缓存和数据库。read-through通过cache provide来访问数据库。</li>
+<li>read-through的数据结构需要和数据库保持一致</li>
+<li>参考guava cache的cacheLoader实现</li>
 </ul>
-<h4 id="单例的替代解决方案"><a href="#单例的替代解决方案" class="headerlink" title="单例的替代解决方案"></a>单例的替代解决方案</h4><p>为了保证全局唯一，除了使用单例，我们还可以用静态方法来实现。不过，静态方法这种实现思路，并不能解决我们之前提到的问题。如果要完全解决这些问题，我们可能要从根上，寻找其他方式来实现全局唯一类了。比如，通过工厂模式、IOC 容器（比如 Spring IOC 容器）来保证，由程序员自己来保证（自己在编写代码的时候自己保证不要创建两个类对象）。</p>
-<h4 id="集群下的单例模式"><a href="#集群下的单例模式" class="headerlink" title="集群下的单例模式"></a>集群下的单例模式</h4><p>我们需要把这个单例对象序列化并存储到外部共享存储区（比如文件）。进程在使用这个单例对象的时候，需要先从外部共享存储区中将它读取到内存，并反序列化成对象，然后再使用，使用完成之后还需要再存储回外部共享存储区。</p>
-<p>为了保证任何时刻，在进程间都只有一份对象存在，一个进程在获取到对象之后，需要对对象加锁，避免其他进程再将其获取。在进程使用完这个对象之后，还需要显式地将对象从内存中删除，并且释放对对象的加锁。</p>
-<p><strong>Ps：总结自王争老师极客时间设计模式课程，侵删。</strong></p>
+<h2 id="Write-Through-Cache"><a href="#Write-Through-Cache" class="headerlink" title="Write-Through Cache"></a>Write-Through Cache</h2><p><img src="https://cdn.nlark.com/yuque/0/2020/png/132169/1597909367787-b2bf75cb-7d68-4c33-aebe-c339d5dfc583.png" alt="image.png"></p>
+<ul>
+<li>write-through模式引入了额外的写入性能问题，因为需要先写入cahce，再写回数据库。</li>
+<li>配合read-through一起使用可以完美发挥这种模式的优势，高效的查询和数据的最终一致性。</li>
+<li>DynamoDB Accelerator（DAX）一个read-through/write-through缓存的典型例子。</li>
+</ul>
+<h2 id="write-aroud"><a href="#write-aroud" class="headerlink" title="write-aroud"></a>write-aroud</h2><p>先写数据库，数据只有在需要使用的时候才会被加载进缓存，通常配合cache-aside和read-through使用。</p>
+<h2 id="write-back（write-behind）"><a href="#write-back（write-behind）" class="headerlink" title="write-back（write-behind）"></a>write-back（write-behind）</h2><p><img src="https://cdn.nlark.com/yuque/0/2020/png/132169/1597909993763-cbd1de82-32b6-45d1-8de2-c5f0bfdc4d80.png" alt="image.png"></p>
+<ul>
+<li>先写缓存，最终同步到数据库。适用于写多的场景，例如系统高峰期的写操作。</li>
+<li>配合cache-aside可以大幅提高峰值读写问题。</li>
+<li>如果缓存写失败可能或者同步失败可能存在数据丢失问题。</li>
+</ul>
+<h2 id="最佳实践"><a href="#最佳实践" class="headerlink" title="最佳实践"></a>最佳实践</h2><ul>
+<li>cache-aside + write-around：适用于大多数缓存使用场景，对缓存未命中存在一定的容错性。</li>
+<li>read-through + write-through/write-back：适用于高性能并发读写场景，如秒杀等。</li>
+</ul>
 
     </div>
 
@@ -302,7 +314,7 @@
   </li>
   <li class="post-copyright-link">
     <strong>本文链接：</strong>
-    <a href="http://lei-blog.tech/posts/545bbc59/" title="单例模式-创建型">http://lei-blog.tech/posts/545bbc59/</a>
+    <a href="http://lei-blog.tech/posts/7746b112/" title="cache-patterns">http://lei-blog.tech/posts/7746b112/</a>
   </li>
   <li class="post-copyright-license">
     <strong>版权声明： </strong>本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> 许可协议。转载请注明出处！
@@ -313,7 +325,7 @@
 
       <footer class="post-footer">
           <div class="post-tags">
-              <a href="/tags/%E5%88%9B%E5%BB%BA%E5%9E%8B%E6%A8%A1%E5%BC%8F/" rel="tag"># 创建型模式</a>
+              <a href="/tags/cache-patterns/" rel="tag"># cache-patterns</a>
           </div>
 
         
@@ -322,13 +334,10 @@
         
     <div class="post-nav">
       <div class="post-nav-item">
-    <a href="/posts/f363124e/" rel="prev" title="spring-dbunit使用指南">
-      <i class="fa fa-chevron-left"></i> spring-dbunit使用指南
+    <a href="/posts/c1b07405/" rel="prev" title="分布式锁调研">
+      <i class="fa fa-chevron-left"></i> 分布式锁调研
     </a></div>
-      <div class="post-nav-item">
-    <a href="/posts/9ec2c02f/" rel="next" title="代理模式、桥接模式、装饰模式器、适配器模式对比总结">
-      代理模式、桥接模式、装饰模式器、适配器模式对比总结 <i class="fa fa-chevron-right"></i>
-    </a></div>
+      <div class="post-nav-item"></div>
     </div>
       </footer>
     
@@ -387,7 +396,7 @@
 
       <!--noindex-->
       <div class="post-toc-wrap sidebar-panel">
-          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-4"><a class="nav-link" href="#为什么要使用单例模式"><span class="nav-number">1.</span> <span class="nav-text">为什么要使用单例模式</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#如何实现一个单例"><span class="nav-number">2.</span> <span class="nav-text">如何实现一个单例</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#单例的几种实现方式"><span class="nav-number">3.</span> <span class="nav-text">单例的几种实现方式</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#单例存在的问题"><span class="nav-number">4.</span> <span class="nav-text">单例存在的问题</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#单例的替代解决方案"><span class="nav-number">5.</span> <span class="nav-text">单例的替代解决方案</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#集群下的单例模式"><span class="nav-number">6.</span> <span class="nav-text">集群下的单例模式</span></a></li></ol></div>
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#Cache-Aside"><span class="nav-number">1.</span> <span class="nav-text">Cache-Aside</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Read-Through-Cache"><span class="nav-number">2.</span> <span class="nav-text">Read-Through Cache</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Write-Through-Cache"><span class="nav-number">3.</span> <span class="nav-text">Write-Through Cache</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#write-aroud"><span class="nav-number">4.</span> <span class="nav-text">write-aroud</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#write-back（write-behind）"><span class="nav-number">5.</span> <span class="nav-text">write-back（write-behind）</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#最佳实践"><span class="nav-number">6.</span> <span class="nav-text">最佳实践</span></a></li></ol></div>
       </div>
       <!--/noindex-->
 
