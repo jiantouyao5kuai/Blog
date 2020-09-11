@@ -1,6 +1,256 @@
 <?xml version="1.0" encoding="utf-8"?>
 <search>
   <entry>
+    <title>cache-patterns</title>
+    <url>/posts/7746b112/</url>
+    <content><![CDATA[<p>缓存使用得当，可以降低应用的响应时间，减少数据库压力同时节约资源成本。</p>
+<p>考虑缓存使用方式前应该思考的问题：</p>
+<ul>
+<li>系统是读多写少？</li>
+<li>系统是写多读少？</li>
+<li>数据变化频率高吗？</li>
+</ul>
+<p>两大类：</p>
+<ul>
+<li>cache-aside：数据快照</li>
+<li>cache-as-sor：缓存即为数据源</li>
+</ul>
+<h2 id="Cache-Aside"><a href="#Cache-Aside" class="headerlink" title="Cache-Aside"></a>Cache-Aside</h2><p><img src="/images/cacheAside.png" alt="cache-aside"></p>
+<ul>
+<li>cashe-aside模式适用于读多的工作场景。</li>
+<li>使用caceh-aside模式的系统对缓存命中失败有一定的容错率。</li>
+<li>通过应用来访问缓存和数据库可以解耦数据库和缓存，不需要缓存和数据库的结构保持一致。</li>
+<li>通过TTL时间来保证cache和database的数据一致性。如果数据一致性需要强一致的话，需要主动失效缓存或者使用其他策略。</li>
+</ul>
+<h2 id="Read-Through-Cache"><a href="#Read-Through-Cache" class="headerlink" title="Read-Through Cache"></a>Read-Through Cache</h2><p><img src="/images/readThrough.png" alt="read-through"></p>
+<ul>
+<li>cache-aside通过application来访问缓存和数据库。read-through通过cache provide来访问数据库。</li>
+<li>read-through的数据结构需要和数据库保持一致</li>
+<li>参考guava cache的cacheLoader实现</li>
+</ul>
+<h2 id="Write-Through-Cache"><a href="#Write-Through-Cache" class="headerlink" title="Write-Through Cache"></a>Write-Through Cache</h2><p><img src="/images/writeThrough.png" alt="write-through"></p>
+<ul>
+<li>write-through模式引入了额外的写入性能问题，因为需要先写入cahce，再写回数据库。</li>
+<li>配合read-through一起使用可以完美发挥这种模式的优势，高效的查询和数据的最终一致性。</li>
+<li>DynamoDB Accelerator（DAX）一个read-through/write-through缓存的典型例子。</li>
+</ul>
+<h2 id="write-aroud"><a href="#write-aroud" class="headerlink" title="write-aroud"></a>write-aroud</h2><p>先写数据库，数据只有在需要使用的时候才会被加载进缓存，通常配合cache-aside和read-through使用。</p>
+<h2 id="write-back（write-behind）"><a href="#write-back（write-behind）" class="headerlink" title="write-back（write-behind）"></a>write-back（write-behind）</h2><p><img src="/images/writeBack.png" alt="write-back"></p>
+<ul>
+<li>先写缓存，最终同步到数据库。适用于写多的场景，例如系统高峰期的写操作。</li>
+<li>配合cache-aside可以大幅提高峰值读写问题。</li>
+<li>如果缓存写失败可能或者同步失败可能存在数据丢失问题。</li>
+</ul>
+<h2 id="最佳实践"><a href="#最佳实践" class="headerlink" title="最佳实践"></a>最佳实践</h2><ul>
+<li>cache-aside + write-around：适用于大多数缓存使用场景，对缓存未命中存在一定的容错性。</li>
+<li>read-through + write-through/write-back：适用于高性能并发读写场景，如秒杀等。</li>
+</ul>
+]]></content>
+      <categories>
+        <category>cache</category>
+      </categories>
+      <tags>
+        <tag>cache-patterns</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>分布式锁调研</title>
+    <url>/posts/c1b07405/</url>
+    <content><![CDATA[<h3 id="使用分布式锁的目的-意义："><a href="#使用分布式锁的目的-意义：" class="headerlink" title="使用分布式锁的目的/意义："></a>使用分布式锁的目的/意义：</h3><p>1、efficiency：为了提高效率，节约资源，避免重复操作。</p>
+<p>2、correctness：为了数据的一致性，保证业务正确。</p>
+<h3 id="redis分布式锁（single-instance）"><a href="#redis分布式锁（single-instance）" class="headerlink" title="redis分布式锁（single instance）"></a>redis分布式锁（single instance）</h3><p><strong>基本特征</strong></p>
+<ul>
+<li>独占互斥</li>
+<li>无死锁</li>
+<li>有一定容错性</li>
+</ul>
+<p><strong>推荐用法</strong></p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F; 通过set nx达到原子操作</span><br><span class="line">&#x2F;&#x2F; 设置30000毫秒为锁的生命周期，防止客户端崩溃导致锁一直被占用</span><br><span class="line">&#x2F;&#x2F; my_random_value作为锁的版本号，防止解锁的时候串锁</span><br><span class="line">&#x2F;&#x2F; 通过单机达到最高效率，单机备份做容错。适用于efficiency场景的分布式锁</span><br><span class="line">SET resource_name my_random_value NX PX 30000</span><br></pre></td></tr></table></figure>
+
+<h3 id="redlock"><a href="#redlock" class="headerlink" title="redlock"></a>redlock</h3><p><strong>定义</strong></p>
+<ul>
+<li>在n个redis节点上同时上锁，只有在N/2 +1（至少3个）个节点同时加锁成功</li>
+<li>且加锁时间小于锁的有效期，则认为上锁成功</li>
+<li>上锁失败则所有节点解锁</li>
+</ul>
+<p><strong>失败重试</strong></p>
+<ul>
+<li>在获取锁失败后应该在随机时间后重新获取锁，减少并发竞争</li>
+</ul>
+<p><strong>特性</strong></p>
+<ul>
+<li>锁的自动释放（因为key失效了）：最终锁可以再次被使用.</li>
+<li>客户端通常会将没有获取到的锁删除，或者锁被取到后，使用完后，客户端会主动（提前）释放锁，而不是等到锁失效另外的客户端才能取到锁。.</li>
+<li>当客户端重试获取锁时，需要等待一段时间，这个时间必须大于从大多数Redis实例成功获取锁使用的时间，以最大限度地避免脑裂。</li>
+</ul>
+<p><strong>Martin提出的RedLock存在的问题</strong></p>
+<p>问：redis分布式锁无法避免当客户端处理锁对应的逻辑超过来锁过期时间后，锁被其他客户端占有导致的资源冲突问题。（这个问题大多数分布式锁实现都无法避免，也比较难解决）。Martin提出应该提供fencing（栅栏）机制</p>
+<p>答：</p>
+<p>首先分布式锁需要自动失效，否则会有死锁问题。</p>
+<p>redis中的random value可以起到token的作用。</p>
+<p>且如果有fencing机制来保证race condition的话，分布式锁存在的意义是什么？</p>
+<p>并没有正面回答这个问题，可能确实比较难解决。</p>
+<h3 id="zookeeper"><a href="#zookeeper" class="headerlink" title="zookeeper"></a>zookeeper</h3><p><strong>实现方式一</strong></p>
+<ul>
+<li>客户端尝试创建一个znode节点，比如<code>/lock</code>。那么第一个客户端就创建成功了，相当于拿到了锁；而其它的客户端会创建失败（znode已存在），获取锁失败。</li>
+<li>持有锁的客户端访问共享资源完成后，将znode删掉，这样其它客户端接下来就能来获取锁了。</li>
+<li>znode应该被创建成ephemeral的。这是znode的一个特性，它保证如果创建znode的那个客户端崩溃了，那么相应的znode会被自动删除。这保证了锁一定会被释放。</li>
+</ul>
+<p><strong>实现方式二</strong></p>
+<ul>
+<li>创建一个临时顺序节点，通过临时顺序节点的序号来判断是否获取锁成功</li>
+<li>获取锁失败则监听上一个临时顺序节点（可以避免herd effect）</li>
+<li>解锁后通过watcher机制通知下一个节点获取锁成功</li>
+</ul>
+<p><strong>对比redlock</strong></p>
+<ul>
+<li>没有redlock的过期时间问题，能在需要的时候让锁自动释放。但是可能会由于session过期的问题，导致锁被其他客户端占有产生冲突。</li>
+<li>在正常情况下，客户端可以持有锁任意长的时间，这可以确保它做完所有需要的资源访问操作之后再释放锁。这避免了基于Redis的锁对于有效时间(lock validity time)到底设置多长的两难问题。实际上，基于ZooKeeper的锁是依靠Session（心跳）来维持锁的持有状态的，而Redis不支持Sesion。</li>
+<li>基于ZooKeeper的锁支持在获取锁失败之后等待锁重新释放的事件。这让客户端对锁的使用更加灵活。</li>
+</ul>
+<h3 id="chubby"><a href="#chubby" class="headerlink" title="chubby"></a>chubby</h3><p><strong>特性</strong></p>
+<ul>
+<li><strong>advisory lock</strong></li>
+<li><strong>coarse-grained（粗粒度的）</strong></li>
+<li><strong>paxos algo</strong></li>
+<li><strong>file system</strong></li>
+</ul>
+<p><strong>对比zookeeper、redlock</strong></p>
+<ul>
+<li>使用paxos协议保证一致性，只有一个master节点可以读写</li>
+<li>封装了lock api，使用起来更方便</li>
+<li>线性一致性</li>
+</ul>
+<p><strong>chubby解决延迟造成锁失效的机制</strong></p>
+<ul>
+<li>sequencer，类似于fencing token机制，锁的持有者可以随时请求一个sequencer，这是一个字节串，它由三部分组成：<ul>
+<li>锁的名字。</li>
+<li>锁的获取模式（排他锁还是共享锁）。</li>
+<li>lock generation number（一个64bit的单调递增数字）。作用相当于fencing token或epoch number。</li>
+</ul>
+</li>
+</ul>
+<p>客户端拿到sequencer之后，在操作资源的时候把它传给资源服务器。然后，资源服务器负责对sequencer的有效性进行检查。检查可以有两种方式：</p>
+<p>​        1、调用Chubby提供的API，CheckSequencer()，将整个sequencer传进去进行检查。这个检查是为了保证客户端持有的锁在进行资源访问的时候仍然有效。</p>
+<p>​        2、将客户端传来的sequencer与资源服务器当前观察到的最新的sequencer进行对比检查。可以理解为与Martin描述的对于fencing token的检查类似。</p>
+<ul>
+<li>lock-delay<ul>
+<li>Chubby允许客户端为持有的锁指定一个lock-delay的时间值（默认是1分钟）。当Chubby发现客户端被动失去联系的时候，并不会立即释放锁，而是会在lock-delay指定的时间内阻止其它客户端获得这个锁。这是为了在把锁分配给新的客户端之前，让之前持有锁的客户端有充分的时间把请求队列排空(draining the queue)，尽量防止出现延迟到达的未处理请求。</li>
+</ul>
+</li>
+</ul>
+]]></content>
+      <categories>
+        <category>分布式系统设计</category>
+      </categories>
+      <tags>
+        <tag>分布式锁</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>亲缘性线程池</title>
+    <url>/posts/c63a112e/</url>
+    <content><![CDATA[<h4 id="亲缘性线程池"><a href="#亲缘性线程池" class="headerlink" title="亲缘性线程池"></a>亲缘性线程池</h4><ul>
+<li>亲缘性线程池指顺序投递多个任务后，能保证具有相同属性的任务顺序执行。</li>
+</ul>
+<p>JDK默认线程池是不具有亲缘性的</p>
+<ul>
+<li><p>开源实现： <a href="https://links.jianshu.com/go?to=https%3A%2F%2Fgithub.com%2FPhantomThief%2Fsimple-pool" target="_blank" rel="noopener">https://github.com/PhantomThief/simple-pool</a></p>
+</li>
+<li><ul>
+<li>实现原理</li>
+<li>KeyAffinityExecutor - 通过维护一个<Key-ListeningExecutor>的映射，将相同属性的任务放进同一个队列中，使用单个线程执行单个队列中的任务，达到亲缘性的目的。</li>
+</ul>
+</li>
+<li><p>存在问题思考</p>
+</li>
+<li><ul>
+<li>通过key散列后，只有单线程处理任务，如何应对大量的同属性任务问题</li>
+</ul>
+</li>
+<li><p>使用demo</p>
+</li>
+</ul>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">SimplePoolTest</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">static</span> KeyAffinityExecutor executor = KeyAffinityExecutor.newSerializingExecutor(<span class="number">50</span>,<span class="number">5</span>,<span class="string">"my-pool"</span>);</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">main</span><span class="params">(String[] args)</span> </span>&#123;</span><br><span class="line">        List&lt;Person&gt; personList = <span class="keyword">new</span> ArrayList&lt;&gt;();</span><br><span class="line">        personList.add(Person.builder().id(<span class="number">1</span>).data(<span class="string">"1s"</span>).build());</span><br><span class="line">        personList.add(Person.builder().id(<span class="number">2</span>).data(<span class="string">"2s"</span>).build());</span><br><span class="line">        personList.add(Person.builder().id(<span class="number">1</span>).data(<span class="string">"11s"</span>).build());</span><br><span class="line">        personList.add(Person.builder().id(<span class="number">3</span>).data(<span class="string">"3s"</span>).build());</span><br><span class="line">        personList.add(Person.builder().id(<span class="number">1</span>).data(<span class="string">"111s"</span>).build());</span><br><span class="line">        personList.add(Person.builder().id(<span class="number">2</span>).data(<span class="string">"22s"</span>).build());</span><br><span class="line">        personList.add(Person.builder().id(<span class="number">3</span>).data(<span class="string">"33s"</span>).build());</span><br><span class="line">        personList.add(Person.builder().id(<span class="number">1</span>).data(<span class="string">"1111s"</span>).build());</span><br><span class="line">      </span><br><span class="line">        exceteBatch(personList);</span><br><span class="line"></span><br><span class="line">        System.exit(<span class="number">1</span>);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">exceteBatch</span><span class="params">(List&lt;Person&gt; personList)</span></span>&#123;</span><br><span class="line">        personList.forEach(p -&gt; executor.executeEx(p.getId(), () -&gt; &#123;</span><br><span class="line">            System.out.println(p);</span><br><span class="line">        &#125;));</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">static</span> <span class="class"><span class="keyword">class</span> <span class="title">Person</span></span>&#123;</span><br><span class="line">        Integer id;</span><br><span class="line"></span><br><span class="line">        String data;</span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">public</span> <span class="title">Person</span><span class="params">(Integer id,String data)</span></span>&#123;</span><br><span class="line">            <span class="keyword">this</span>.id = id;</span><br><span class="line">            <span class="keyword">this</span>.data = data;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">static</span> PersonBuilder <span class="title">builder</span><span class="params">()</span></span>&#123;</span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">new</span> PersonBuilder();</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">public</span> Integer <span class="title">getId</span><span class="params">()</span> </span>&#123;</span><br><span class="line">            <span class="keyword">return</span> id;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">setId</span><span class="params">(Integer id)</span> </span>&#123;</span><br><span class="line">            <span class="keyword">this</span>.id = id;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">public</span> String <span class="title">getData</span><span class="params">()</span> </span>&#123;</span><br><span class="line">            <span class="keyword">return</span> data;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">setData</span><span class="params">(String data)</span> </span>&#123;</span><br><span class="line">            <span class="keyword">this</span>.data = data;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="meta">@Override</span></span><br><span class="line">        <span class="function"><span class="keyword">public</span> String <span class="title">toString</span><span class="params">()</span> </span>&#123;</span><br><span class="line">            <span class="keyword">return</span> <span class="string">"Person&#123;"</span> +</span><br><span class="line">                    <span class="string">"id="</span> + id +</span><br><span class="line">                    <span class="string">", data='"</span> + data + <span class="string">'\''</span> +</span><br><span class="line">                    <span class="string">'&#125;'</span>;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">static</span> <span class="class"><span class="keyword">class</span> <span class="title">PersonBuilder</span></span>&#123;</span><br><span class="line">        Integer id;</span><br><span class="line"></span><br><span class="line">        String data;</span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">public</span> PersonBuilder <span class="title">id</span><span class="params">(Integer id)</span></span>&#123;</span><br><span class="line">            <span class="keyword">this</span>.id = id;</span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">this</span>;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="function"><span class="keyword">public</span> PersonBuilder <span class="title">data</span><span class="params">(String data)</span></span>&#123;</span><br><span class="line">            <span class="keyword">this</span>.data = data;</span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">this</span>;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="function"><span class="keyword">public</span> Person <span class="title">build</span><span class="params">()</span></span>&#123;</span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">new</span> Person(id,data);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>]]></content>
+      <categories>
+        <category>多线程</category>
+      </categories>
+      <tags>
+        <tag>线程池</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>spring-dbunit使用指南</title>
+    <url>/posts/f363124e/</url>
+    <content><![CDATA[<h3 id="目标："><a href="#目标：" class="headerlink" title="目标："></a>目标：</h3><p>​    帮助你些一个可以多次重复运行且不依赖数据库现在数据的单元测试。<br>​    官方文档：<a href="https://springtestdbunit.github.io/spring-test-dbunit/index.html" target="_blank" rel="noopener">传送门</a></p>
+<h3 id="QuickStart"><a href="#QuickStart" class="headerlink" title="QuickStart"></a>QuickStart</h3><h4 id="1、引入依赖"><a href="#1、引入依赖" class="headerlink" title="1、引入依赖"></a>1、引入依赖</h4><p>​    具体版本视自己项目情况定义：</p>
+<figure class="highlight xml"><table><tr><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">dependency</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>com.github.springtestdbunit<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>spring-test-dbunit<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">version</span>&gt;</span>1.3.0<span class="tag">&lt;/<span class="name">version</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">scope</span>&gt;</span>test<span class="tag">&lt;/<span class="name">scope</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">dependency</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>org.dbunit<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>dbunit<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">version</span>&gt;</span>2.5.0<span class="tag">&lt;/<span class="name">version</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">type</span>&gt;</span>jar<span class="tag">&lt;/<span class="name">type</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">scope</span>&gt;</span>test<span class="tag">&lt;/<span class="name">scope</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></span><br></pre></td></tr></table></figure>
+
+<h4 id="2、配置"><a href="#2、配置" class="headerlink" title="2、配置"></a>2、配置</h4><h5 id="代码配置：基于现有可运行的单元测试的基础上，增加-TestExecutionListeners配置，如代码所示："><a href="#代码配置：基于现有可运行的单元测试的基础上，增加-TestExecutionListeners配置，如代码所示：" class="headerlink" title="代码配置：基于现有可运行的单元测试的基础上，增加@TestExecutionListeners配置，如代码所示："></a>代码配置：基于现有可运行的单元测试的基础上，增加@TestExecutionListeners配置，如代码所示：</h5><figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="meta">@RunWith</span>(SpringJUnit4ClassRunner<span class="class">.<span class="keyword">class</span>)</span></span><br><span class="line"><span class="class">@<span class="title">ContextConfiguration</span>(<span class="title">locations</span> </span>= <span class="string">"classpath:applicationContext.xml"</span>)</span><br><span class="line"><span class="meta">@DbUnitConfiguration</span>(databaseConnection=&#123;<span class="string">"customDataSource"</span>)</span><br><span class="line"><span class="meta">@TestExecutionListeners</span>(&#123;DependencyInjectionTestExecutionListener<span class="class">.<span class="keyword">class</span>,</span></span><br><span class="line"><span class="class">        <span class="title">DbUnitTestExecutionListener</span>.<span class="title">class</span>&#125;)</span></span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><strong>DependencyInjectionTestExecutionListener</strong>：负责注入单元测试中使用到的依赖。</li>
+<li><strong>DbUnitTestExecutionListener</strong>：负责处理dbunit相关注解（见3、主要功能说明）。</li>
+<li><strong>DbUnitConfiguration</strong>:  检查自己的dataSource的beanName，如果属于{“dbUnitDatabaseConnection”, “dataSource”}其中之一，可省略这个配置，否则需要加上，配置自己的beanName。</li>
+</ul>
+<p><strong>注：{“dbUnitDatabaseConnection”, “dataSource”}为dbunit默认去springContext中加载dataSource时使用的beanName。</strong></p>
+<h4 id="3、主要功能说明"><a href="#3、主要功能说明" class="headerlink" title="3、主要功能说明"></a>3、主要功能说明</h4><ul>
+<li><strong>@DatabaseSetup</strong> - 在testMethod执行之前会执行@DatabaseSetup，用于初始化测试数据<ul>
+<li>connection - 连接的数据源，单数据源可不配置</li>
+<li>type - 操作类型，参考DatabaseOperation枚举</li>
+<li>value - 数据xml</li>
+</ul>
+</li>
+</ul>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="comment">// DatabaseSetup的DatabaseOperation默认值是CLEAN_INSERT，即清空表再插入数据，</span></span><br><span class="line"><span class="comment">//  明显与我们需求不符，配置成DatabaseOperation.INSERT即可。</span></span><br><span class="line"><span class="meta">@DatabaseSetup</span>(value =  <span class="string">"classpath:biz_info.xml"</span>,type = DatabaseOperation.INSERT)</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><strong>@DatabaseTearDown</strong> -  在testMethod执行之后会执行@DatabaseTearDown，用于回滚删除测试数据<br>配置项与@DatabaseSetup一致</li>
+</ul>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="comment">// DatabaseTearDown的DatabaseOperation默认值为CLEAN_INSERT，即删除插入的数据。</span></span><br><span class="line"><span class="meta">@DatabaseTearDown</span>(<span class="string">"classpath:biz_info.xml"</span>)</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><strong>@ExpectedDatabase</strong> -  在testMethod执行之后会执行@ExpectedDatabase，早于@DatabaseTearDown用于测试结果校验（<em>比较的是数据库中当前的记录和xml中配置的数据值是否完全一致，有点鸡肋</em>）<ul>
+<li>connection - 连接的数据源，单数据源可不配置</li>
+<li>value - 数据xml</li>
+</ul>
+</li>
+</ul>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="comment">// 比较的是数据库的值和xml中配置的数据值，有点鸡肋</span></span><br><span class="line"><span class="meta">@ExpectedDatabase</span>(<span class="string">"classpath:result.xml"</span>)</span><br></pre></td></tr></table></figure>
+
+<h4 id="4、其他"><a href="#4、其他" class="headerlink" title="4、其他"></a>4、其他</h4><ul>
+<li><p>如何配置回滚</p>
+<ol>
+<li>修改<strong><em>DbUnitTestExecutionListener</em></strong>为<strong><em>TransactionDbUnitTestExecutionListener。</em></strong></li>
+<li>加上<strong><em>@Transactional</em></strong>注解。</li>
+<li>在method上配置<strong>@DatabaseTearDown，</strong>标明要回滚删除哪些数据。</li>
+</ol>
+</li>
+<li><p>多数据源如何配置</p>
+<ol>
+<li>测试类上配置@DbUnitConfiguration(databaseConnection={“customDataSource”,”dataSource”})</li>
+<li>在method上使用@DatabaseTearDown|@DatabaseSetUp|@ExpectedDatabase时加上connection配置,指定dataSource</li>
+</ol>
+</li>
+</ul>
+<p><strong>例：@DatabaseTearDown(connection = “dataSource”,value=”classpath:biz_info.xml”)**</strong></p>
+<hr>
+<h3 id="Demo"><a href="#Demo" class="headerlink" title="Demo"></a>Demo</h3><figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="meta">@RunWith</span>(SpringJUnit4ClassRunner<span class="class">.<span class="keyword">class</span>)</span></span><br><span class="line"><span class="class">@<span class="title">ContextConfiguration</span>(<span class="title">locations</span> </span>= <span class="string">"classpath:daoApplicationContext.xml"</span>)</span><br><span class="line"><span class="meta">@DbUnitConfiguration</span>(databaseConnection = &#123;<span class="string">"dateSource"</span>&#125;)</span><br><span class="line"><span class="meta">@TestExecutionListeners</span>(&#123;DependencyInjectionTestExecutionListener<span class="class">.<span class="keyword">class</span>,</span></span><br><span class="line"><span class="class">        <span class="title">TransactionDbUnitTestExecutionListener</span>.<span class="title">class</span>&#125;)</span></span><br><span class="line"><span class="class">@<span class="title">Transactional</span></span></span><br><span class="line"><span class="class"><span class="title">public</span> <span class="title">class</span> <span class="title">DistributeConfigTest</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Autowired</span></span><br><span class="line">    BizInfoDAO bizInfoDAO;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Test</span></span><br><span class="line">    <span class="meta">@DatabaseSetup</span>(value =  <span class="string">"classpath:biz_info.xml"</span>,type = DatabaseOperation.INSERT)</span><br><span class="line">    <span class="meta">@DatabaseTearDown</span>(connection = <span class="string">"dateSource"</span>,value = <span class="string">"classpath:biz_info.xml"</span>)</span><br><span class="line">    <span class="meta">@ExpectedDatabase</span>(connection = <span class="string">"dateSource"</span>,value = <span class="string">"classpath:result.xml"</span>)</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">test_findAllBizInfo</span><span class="params">()</span></span>&#123;</span><br><span class="line">        List&lt;BizInfoPO&gt; bizInfoList = bizInfoDAO.findAll();</span><br><span class="line"></span><br><span class="line">        assertNotNull(bizInfoList);</span><br><span class="line">        assertEquals(<span class="number">2</span>,bizInfoList.size());</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>biz_info.xml</p>
+<figure class="highlight xml"><table><tr><td class="code"><pre><span class="line"><span class="meta">&lt;?xml version="1.0" encoding="UTF-8"?&gt;</span></span><br><span class="line"><span class="comment">&lt;!-- biz_info为表名，后面是字段 --&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">dataset</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">biz_info</span>  <span class="attr">delete_mark</span>=<span class="string">"0"</span> <span class="attr">biz_code</span>=<span class="string">"a"</span> <span class="attr">biz_name</span>=<span class="string">"a"</span>/&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">biz_info</span>  <span class="attr">delete_mark</span>=<span class="string">"0"</span> <span class="attr">biz_code</span>=<span class="string">"b"</span> <span class="attr">biz_name</span>=<span class="string">"b"</span>/&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">dataset</span>&gt;</span></span><br></pre></td></tr></table></figure>
+
+<p>result.xml</p>
+<figure class="highlight xml"><table><tr><td class="code"><pre><span class="line"><span class="meta">&lt;?xml version="1.0" encoding="UTF-8"?&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">dataset</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">biz_info</span>  <span class="attr">delete_mark</span>=<span class="string">"0"</span> <span class="attr">biz_code</span>=<span class="string">"a"</span> <span class="attr">biz_name</span>=<span class="string">"a"</span>/&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">biz_info</span>  <span class="attr">delete_mark</span>=<span class="string">"0"</span> <span class="attr">biz_code</span>=<span class="string">"b"</span> <span class="attr">biz_name</span>=<span class="string">"b"</span>/&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">dataset</span>&gt;</span></span><br></pre></td></tr></table></figure>
+]]></content>
+      <categories>
+        <category>unit-test</category>
+      </categories>
+      <tags>
+        <tag>dbUnit</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>Caffeine</title>
     <url>/posts/aa7617fc/</url>
     <content><![CDATA[<h4 id="概述："><a href="#概述：" class="headerlink" title="概述："></a>概述：</h4><p>Caffeine是一个基于Java8和Guava Cache重写的高性能的JVM缓存工具。</p>
@@ -138,127 +388,26 @@
       </tags>
   </entry>
   <entry>
-    <title>cache-patterns</title>
-    <url>/posts/7746b112/</url>
-    <content><![CDATA[<p>缓存使用得当，可以降低应用的响应时间，减少数据库压力同时节约资源成本。</p>
-<p>考虑缓存使用方式前应该思考的问题：</p>
-<ul>
-<li>系统是读多写少？</li>
-<li>系统是写多读少？</li>
-<li>数据变化频率高吗？</li>
+    <title>工厂模式-创建型</title>
+    <url>/posts/21f4dc22/</url>
+    <content><![CDATA[<h3 id="简单工厂（静态工厂）"><a href="#简单工厂（静态工厂）" class="headerlink" title="简单工厂（静态工厂）"></a>简单工厂（静态工厂）</h3><p>第一种情况：类似规则配置解析的例子，代码中存在 if-else 分支判断，动态地根据不同的类型创建不同的对象。针对这种情况，我们就考虑使用工厂模式，将这一大坨 if-else 创建对象的代码抽离出来，放到工厂类中。</p>
+<p>还有一种情况，尽管我们不需要根据不同的类型创建不同的对象，但是，单个对象本身的创建过程比较复杂，比如前面提到的要组合其他类对象，做各种初始化操作。在这种情况下，我们也可以考虑使用工厂模式，将对象的创建过程封装到工厂类中。</p>
+<h3 id="工厂方法"><a href="#工厂方法" class="headerlink" title="工厂方法"></a>工厂方法</h3><p>基于简单工厂的抽象，解决简单工厂的if-else判断问题，使用抽象和多态将不同的创建方法分离到不同的类中。</p>
+<h3 id="抽象工厂"><a href="#抽象工厂" class="headerlink" title="抽象工厂"></a>抽象工厂</h3><p>可以同时创建不同产品族的对象。</p>
+<h4 id="工厂模式的作用"><a href="#工厂模式的作用" class="headerlink" title="工厂模式的作用"></a>工厂模式的作用</h4><ul>
+<li>封装变化：创建逻辑有可能变化，封装成工厂类之后，创建逻辑的变更对调用者透明。</li>
+<li>代码复用：创建代码抽离到独立的工厂类之后可以复用。</li>
+<li>隔离复杂性：封装复杂的创建逻辑，调用者无需了解如何创建对象。</li>
+<li>控制复杂度：将创建代码抽离出来，让原本的函数或类职责更单一，代码更简洁。</li>
 </ul>
-<p>两大类：</p>
-<ul>
-<li>cache-aside：数据快照</li>
-<li>cache-as-sor：缓存即为数据源</li>
-</ul>
-<h2 id="Cache-Aside"><a href="#Cache-Aside" class="headerlink" title="Cache-Aside"></a>Cache-Aside</h2><p><img src="/images/cacheAside.png" alt="cache-aside"></p>
-<ul>
-<li>cashe-aside模式适用于读多的工作场景。</li>
-<li>使用caceh-aside模式的系统对缓存命中失败有一定的容错率。</li>
-<li>通过应用来访问缓存和数据库可以解耦数据库和缓存，不需要缓存和数据库的结构保持一致。</li>
-<li>通过TTL时间来保证cache和database的数据一致性。如果数据一致性需要强一致的话，需要主动失效缓存或者使用其他策略。</li>
-</ul>
-<h2 id="Read-Through-Cache"><a href="#Read-Through-Cache" class="headerlink" title="Read-Through Cache"></a>Read-Through Cache</h2><p><img src="/images/readThrough.png" alt="read-through"></p>
-<ul>
-<li>cache-aside通过application来访问缓存和数据库。read-through通过cache provide来访问数据库。</li>
-<li>read-through的数据结构需要和数据库保持一致</li>
-<li>参考guava cache的cacheLoader实现</li>
-</ul>
-<h2 id="Write-Through-Cache"><a href="#Write-Through-Cache" class="headerlink" title="Write-Through Cache"></a>Write-Through Cache</h2><p><img src="/images/writeThrough.png" alt="write-through"></p>
-<ul>
-<li>write-through模式引入了额外的写入性能问题，因为需要先写入cahce，再写回数据库。</li>
-<li>配合read-through一起使用可以完美发挥这种模式的优势，高效的查询和数据的最终一致性。</li>
-<li>DynamoDB Accelerator（DAX）一个read-through/write-through缓存的典型例子。</li>
-</ul>
-<h2 id="write-aroud"><a href="#write-aroud" class="headerlink" title="write-aroud"></a>write-aroud</h2><p>先写数据库，数据只有在需要使用的时候才会被加载进缓存，通常配合cache-aside和read-through使用。</p>
-<h2 id="write-back（write-behind）"><a href="#write-back（write-behind）" class="headerlink" title="write-back（write-behind）"></a>write-back（write-behind）</h2><p><img src="/images/writeBack.png" alt="write-back"></p>
-<ul>
-<li>先写缓存，最终同步到数据库。适用于写多的场景，例如系统高峰期的写操作。</li>
-<li>配合cache-aside可以大幅提高峰值读写问题。</li>
-<li>如果缓存写失败可能或者同步失败可能存在数据丢失问题。</li>
-</ul>
-<h2 id="最佳实践"><a href="#最佳实践" class="headerlink" title="最佳实践"></a>最佳实践</h2><ul>
-<li>cache-aside + write-around：适用于大多数缓存使用场景，对缓存未命中存在一定的容错性。</li>
-<li>read-through + write-through/write-back：适用于高性能并发读写场景，如秒杀等。</li>
-</ul>
+<h4 id="工厂模式与DI"><a href="#工厂模式与DI" class="headerlink" title="工厂模式与DI"></a>工厂模式与DI</h4><p>Dependency Injection是工厂模式的扩展，拥有比工厂模式更多的功能，如配置解析和对象生命周期管理。其核心逻辑主要包括：配置文件解析，以及根据配置文件通过“反射”语法来创建对象。其中，创建对象的过程就应用到了我们在学的工厂模式。对象创建、组装、管理完全有 DI 容器来负责，跟具体业务代码解耦，让程序员聚焦在业务代码的开发上。</p>
+<p><strong>Ps：总结自王争老师极客时间设计模式课程，侵删。</strong></p>
 ]]></content>
       <categories>
-        <category>cache</category>
+        <category>设计模式</category>
       </categories>
       <tags>
-        <tag>cache-patterns</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>spring-dbunit使用指南</title>
-    <url>/posts/f363124e/</url>
-    <content><![CDATA[<h3 id="目标："><a href="#目标：" class="headerlink" title="目标："></a>目标：</h3><p>​    帮助你些一个可以多次重复运行且不依赖数据库现在数据的单元测试。<br>​    官方文档：<a href="https://springtestdbunit.github.io/spring-test-dbunit/index.html" target="_blank" rel="noopener">传送门</a></p>
-<h3 id="QuickStart"><a href="#QuickStart" class="headerlink" title="QuickStart"></a>QuickStart</h3><h4 id="1、引入依赖"><a href="#1、引入依赖" class="headerlink" title="1、引入依赖"></a>1、引入依赖</h4><p>​    具体版本视自己项目情况定义：</p>
-<figure class="highlight xml"><table><tr><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">dependency</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>com.github.springtestdbunit<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>spring-test-dbunit<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">version</span>&gt;</span>1.3.0<span class="tag">&lt;/<span class="name">version</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">scope</span>&gt;</span>test<span class="tag">&lt;/<span class="name">scope</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">dependency</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>org.dbunit<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>dbunit<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">version</span>&gt;</span>2.5.0<span class="tag">&lt;/<span class="name">version</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">type</span>&gt;</span>jar<span class="tag">&lt;/<span class="name">type</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">scope</span>&gt;</span>test<span class="tag">&lt;/<span class="name">scope</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></span><br></pre></td></tr></table></figure>
-
-<h4 id="2、配置"><a href="#2、配置" class="headerlink" title="2、配置"></a>2、配置</h4><h5 id="代码配置：基于现有可运行的单元测试的基础上，增加-TestExecutionListeners配置，如代码所示："><a href="#代码配置：基于现有可运行的单元测试的基础上，增加-TestExecutionListeners配置，如代码所示：" class="headerlink" title="代码配置：基于现有可运行的单元测试的基础上，增加@TestExecutionListeners配置，如代码所示："></a>代码配置：基于现有可运行的单元测试的基础上，增加@TestExecutionListeners配置，如代码所示：</h5><figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="meta">@RunWith</span>(SpringJUnit4ClassRunner<span class="class">.<span class="keyword">class</span>)</span></span><br><span class="line"><span class="class">@<span class="title">ContextConfiguration</span>(<span class="title">locations</span> </span>= <span class="string">"classpath:applicationContext.xml"</span>)</span><br><span class="line"><span class="meta">@DbUnitConfiguration</span>(databaseConnection=&#123;<span class="string">"customDataSource"</span>)</span><br><span class="line"><span class="meta">@TestExecutionListeners</span>(&#123;DependencyInjectionTestExecutionListener<span class="class">.<span class="keyword">class</span>,</span></span><br><span class="line"><span class="class">        <span class="title">DbUnitTestExecutionListener</span>.<span class="title">class</span>&#125;)</span></span><br></pre></td></tr></table></figure>
-
-<ul>
-<li><strong>DependencyInjectionTestExecutionListener</strong>：负责注入单元测试中使用到的依赖。</li>
-<li><strong>DbUnitTestExecutionListener</strong>：负责处理dbunit相关注解（见3、主要功能说明）。</li>
-<li><strong>DbUnitConfiguration</strong>:  检查自己的dataSource的beanName，如果属于{“dbUnitDatabaseConnection”, “dataSource”}其中之一，可省略这个配置，否则需要加上，配置自己的beanName。</li>
-</ul>
-<p><strong>注：{“dbUnitDatabaseConnection”, “dataSource”}为dbunit默认去springContext中加载dataSource时使用的beanName。</strong></p>
-<h4 id="3、主要功能说明"><a href="#3、主要功能说明" class="headerlink" title="3、主要功能说明"></a>3、主要功能说明</h4><ul>
-<li><strong>@DatabaseSetup</strong> - 在testMethod执行之前会执行@DatabaseSetup，用于初始化测试数据<ul>
-<li>connection - 连接的数据源，单数据源可不配置</li>
-<li>type - 操作类型，参考DatabaseOperation枚举</li>
-<li>value - 数据xml</li>
-</ul>
-</li>
-</ul>
-<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="comment">// DatabaseSetup的DatabaseOperation默认值是CLEAN_INSERT，即清空表再插入数据，</span></span><br><span class="line"><span class="comment">//  明显与我们需求不符，配置成DatabaseOperation.INSERT即可。</span></span><br><span class="line"><span class="meta">@DatabaseSetup</span>(value =  <span class="string">"classpath:biz_info.xml"</span>,type = DatabaseOperation.INSERT)</span><br></pre></td></tr></table></figure>
-
-<ul>
-<li><strong>@DatabaseTearDown</strong> -  在testMethod执行之后会执行@DatabaseTearDown，用于回滚删除测试数据<br>配置项与@DatabaseSetup一致</li>
-</ul>
-<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="comment">// DatabaseTearDown的DatabaseOperation默认值为CLEAN_INSERT，即删除插入的数据。</span></span><br><span class="line"><span class="meta">@DatabaseTearDown</span>(<span class="string">"classpath:biz_info.xml"</span>)</span><br></pre></td></tr></table></figure>
-
-<ul>
-<li><strong>@ExpectedDatabase</strong> -  在testMethod执行之后会执行@ExpectedDatabase，早于@DatabaseTearDown用于测试结果校验（<em>比较的是数据库中当前的记录和xml中配置的数据值是否完全一致，有点鸡肋</em>）<ul>
-<li>connection - 连接的数据源，单数据源可不配置</li>
-<li>value - 数据xml</li>
-</ul>
-</li>
-</ul>
-<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="comment">// 比较的是数据库的值和xml中配置的数据值，有点鸡肋</span></span><br><span class="line"><span class="meta">@ExpectedDatabase</span>(<span class="string">"classpath:result.xml"</span>)</span><br></pre></td></tr></table></figure>
-
-<h4 id="4、其他"><a href="#4、其他" class="headerlink" title="4、其他"></a>4、其他</h4><ul>
-<li><p>如何配置回滚</p>
-<ol>
-<li>修改<strong><em>DbUnitTestExecutionListener</em></strong>为<strong><em>TransactionDbUnitTestExecutionListener。</em></strong></li>
-<li>加上<strong><em>@Transactional</em></strong>注解。</li>
-<li>在method上配置<strong>@DatabaseTearDown，</strong>标明要回滚删除哪些数据。</li>
-</ol>
-</li>
-<li><p>多数据源如何配置</p>
-<ol>
-<li>测试类上配置@DbUnitConfiguration(databaseConnection={“customDataSource”,”dataSource”})</li>
-<li>在method上使用@DatabaseTearDown|@DatabaseSetUp|@ExpectedDatabase时加上connection配置,指定dataSource</li>
-</ol>
-</li>
-</ul>
-<p><strong>例：@DatabaseTearDown(connection = “dataSource”,value=”classpath:biz_info.xml”)**</strong></p>
-<hr>
-<h3 id="Demo"><a href="#Demo" class="headerlink" title="Demo"></a>Demo</h3><figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="meta">@RunWith</span>(SpringJUnit4ClassRunner<span class="class">.<span class="keyword">class</span>)</span></span><br><span class="line"><span class="class">@<span class="title">ContextConfiguration</span>(<span class="title">locations</span> </span>= <span class="string">"classpath:daoApplicationContext.xml"</span>)</span><br><span class="line"><span class="meta">@DbUnitConfiguration</span>(databaseConnection = &#123;<span class="string">"dateSource"</span>&#125;)</span><br><span class="line"><span class="meta">@TestExecutionListeners</span>(&#123;DependencyInjectionTestExecutionListener<span class="class">.<span class="keyword">class</span>,</span></span><br><span class="line"><span class="class">        <span class="title">TransactionDbUnitTestExecutionListener</span>.<span class="title">class</span>&#125;)</span></span><br><span class="line"><span class="class">@<span class="title">Transactional</span></span></span><br><span class="line"><span class="class"><span class="title">public</span> <span class="title">class</span> <span class="title">DistributeConfigTest</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Autowired</span></span><br><span class="line">    BizInfoDAO bizInfoDAO;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Test</span></span><br><span class="line">    <span class="meta">@DatabaseSetup</span>(value =  <span class="string">"classpath:biz_info.xml"</span>,type = DatabaseOperation.INSERT)</span><br><span class="line">    <span class="meta">@DatabaseTearDown</span>(connection = <span class="string">"dateSource"</span>,value = <span class="string">"classpath:biz_info.xml"</span>)</span><br><span class="line">    <span class="meta">@ExpectedDatabase</span>(connection = <span class="string">"dateSource"</span>,value = <span class="string">"classpath:result.xml"</span>)</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">test_findAllBizInfo</span><span class="params">()</span></span>&#123;</span><br><span class="line">        List&lt;BizInfoPO&gt; bizInfoList = bizInfoDAO.findAll();</span><br><span class="line"></span><br><span class="line">        assertNotNull(bizInfoList);</span><br><span class="line">        assertEquals(<span class="number">2</span>,bizInfoList.size());</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>biz_info.xml</p>
-<figure class="highlight xml"><table><tr><td class="code"><pre><span class="line"><span class="meta">&lt;?xml version="1.0" encoding="UTF-8"?&gt;</span></span><br><span class="line"><span class="comment">&lt;!-- biz_info为表名，后面是字段 --&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">dataset</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">biz_info</span>  <span class="attr">delete_mark</span>=<span class="string">"0"</span> <span class="attr">biz_code</span>=<span class="string">"a"</span> <span class="attr">biz_name</span>=<span class="string">"a"</span>/&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">biz_info</span>  <span class="attr">delete_mark</span>=<span class="string">"0"</span> <span class="attr">biz_code</span>=<span class="string">"b"</span> <span class="attr">biz_name</span>=<span class="string">"b"</span>/&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">dataset</span>&gt;</span></span><br></pre></td></tr></table></figure>
-
-<p>result.xml</p>
-<figure class="highlight xml"><table><tr><td class="code"><pre><span class="line"><span class="meta">&lt;?xml version="1.0" encoding="UTF-8"?&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">dataset</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">biz_info</span>  <span class="attr">delete_mark</span>=<span class="string">"0"</span> <span class="attr">biz_code</span>=<span class="string">"a"</span> <span class="attr">biz_name</span>=<span class="string">"a"</span>/&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">biz_info</span>  <span class="attr">delete_mark</span>=<span class="string">"0"</span> <span class="attr">biz_code</span>=<span class="string">"b"</span> <span class="attr">biz_name</span>=<span class="string">"b"</span>/&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">dataset</span>&gt;</span></span><br></pre></td></tr></table></figure>
-]]></content>
-      <categories>
-        <category>unit-test</category>
-      </categories>
-      <tags>
-        <tag>dbUnit</tag>
+        <tag>创建型模式</tag>
       </tags>
   </entry>
   <entry>
@@ -321,88 +470,104 @@
       </tags>
   </entry>
   <entry>
-    <title>分布式锁调研</title>
-    <url>/posts/c1b07405/</url>
-    <content><![CDATA[<h3 id="使用分布式锁的目的-意义："><a href="#使用分布式锁的目的-意义：" class="headerlink" title="使用分布式锁的目的/意义："></a>使用分布式锁的目的/意义：</h3><p>1、efficiency：为了提高效率，节约资源，避免重复操作。</p>
-<p>2、correctness：为了数据的一致性，保证业务正确。</p>
-<h3 id="redis分布式锁（single-instance）"><a href="#redis分布式锁（single-instance）" class="headerlink" title="redis分布式锁（single instance）"></a>redis分布式锁（single instance）</h3><p><strong>基本特征</strong></p>
+    <title>消息队列设计精要</title>
+    <url>/posts/10e7a6ee/</url>
+    <content><![CDATA[<h4 id="消息队列设计精要"><a href="#消息队列设计精要" class="headerlink" title="消息队列设计精要"></a>消息队列设计精要</h4><p>文章引用：<a href="https://tech.meituan.com/2016/07/01/mq-design.html" target="_blank" rel="noopener">美团技术团队博客</a></p>
+<p><strong>实现消息队列的基本功能</strong></p>
 <ul>
-<li>独占互斥</li>
-<li>无死锁</li>
-<li>有一定容错性</li>
+<li><p>解决的核心问题</p>
+<ul>
+<li>解耦</li>
+<li>最终一致性</li>
+<li>广播</li>
+<li>错峰与流控 - “通用漏斗”</li>
 </ul>
-<p><strong>推荐用法</strong></p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F; 通过set nx达到原子操作</span><br><span class="line">&#x2F;&#x2F; 设置30000毫秒为锁的生命周期，防止客户端崩溃导致锁一直被占用</span><br><span class="line">&#x2F;&#x2F; my_random_value作为锁的版本号，防止解锁的时候串锁</span><br><span class="line">&#x2F;&#x2F; 通过单机达到最高效率，单机备份做容错。适用于efficiency场景的分布式锁</span><br><span class="line">SET resource_name my_random_value NX PX 30000</span><br></pre></td></tr></table></figure>
-
-<h3 id="redlock"><a href="#redlock" class="headerlink" title="redlock"></a>redlock</h3><p><strong>定义</strong></p>
+</li>
+<li><p>RPC通信协议 - 避免重复造轮子，使用现有RPC框架（thrift，dubbo等）</p>
+</li>
+<li><p>高可用</p>
+</li>
+<li><p>服务端承载消息对接的能力</p>
+</li>
+<li><p>存储子系统选择</p>
+<p>理论上，从速度来看，文件系统&gt;分布式KV（持久化）&gt;分布式文件系统&gt;数据库，而可靠性却截然相反。还是要从支持的业务场景出发作出最合理的选择，如果你们的消息队列是用来支持支付/交易等对可靠性要求非常高，但对性能和量的要求没有这么高，而且没有时间精力专门做文件存储系统的研究，DB是最好的选择。 但是DB受制于IOPS，如果要求单broker 5位数以上的QPS性能，基于文件的存储是比较好的解决方案。整体上可以采用数据文件+索引文件的方式处理。 分布式KV（如MongoDB，HBase）等，或者持久化的Redis，由于其编程接口较友好，性能也比较可观，如果在可靠性要求不是那么高的场景，也不失为一个不错的选择。</p>
+</li>
+<li><p>消费关系解析</p>
+</li>
+<li><p>队列高级特性设计</p>
 <ul>
-<li>在n个redis节点上同时上锁，只有在N/2 +1（至少3个）个节点同时加锁成功</li>
-<li>且加锁时间小于锁的有效期，则认为上锁成功</li>
-<li>上锁失败则所有节点解锁</li>
+<li><p>可靠投递（最终一致性）    </p>
+<p>1、producer往broker发送消息之前，需要做一次落地。</p>
+<p>2、请求到server后，server确保数据落地后再告诉客户端发送成功。</p>
+<p>3、支持广播的消息队列需要对每个待发送的endpoint，持久化一个发送状态，直到所有endpoint状态都OK才可删除消息。   </p>
+</li>
+<li><p>消费确认</p>
+</li>
+<li><p>重复消息和顺序消息</p>
+<ul>
+<li><p>如何鉴别消息重复，并幂等的处理重复消息</p>
+</li>
+<li><p>一个消息队列如何尽量减少重复消息的投递</p>
+</li>
+<li><p>版本号</p>
+<ul>
+<li>对发送方必须要求消息带业务版本号 </li>
+<li>下游必须存储消息的版本号，对于要严格保证顺序的</li>
 </ul>
-<p><strong>失败重试</strong></p>
+</li>
+<li><p>状态机</p>
+</li>
+<li><p>重复消息</p>
 <ul>
-<li>在获取锁失败后应该在随机时间后重新获取锁，减少并发竞争</li>
-</ul>
-<p><strong>特性</strong></p>
-<ul>
-<li>锁的自动释放（因为key失效了）：最终锁可以再次被使用.</li>
-<li>客户端通常会将没有获取到的锁删除，或者锁被取到后，使用完后，客户端会主动（提前）释放锁，而不是等到锁失效另外的客户端才能取到锁。.</li>
-<li>当客户端重试获取锁时，需要等待一段时间，这个时间必须大于从大多数Redis实例成功获取锁使用的时间，以最大限度地避免脑裂。</li>
-</ul>
-<p><strong>Martin提出的RedLock存在的问题</strong></p>
-<p>问：redis分布式锁无法避免当客户端处理锁对应的逻辑超过来锁过期时间后，锁被其他客户端占有导致的资源冲突问题。（这个问题大多数分布式锁实现都无法避免，也比较难解决）。Martin提出应该提供fencing（栅栏）机制</p>
-<p>答：</p>
-<p>首先分布式锁需要自动失效，否则会有死锁问题。</p>
-<p>redis中的random value可以起到token的作用。</p>
-<p>且如果有fencing机制来保证race condition的话，分布式锁存在的意义是什么？</p>
-<p>并没有正面回答这个问题，可能确实比较难解决。</p>
-<h3 id="zookeeper"><a href="#zookeeper" class="headerlink" title="zookeeper"></a>zookeeper</h3><p><strong>实现方式一</strong></p>
-<ul>
-<li>客户端尝试创建一个znode节点，比如<code>/lock</code>。那么第一个客户端就创建成功了，相当于拿到了锁；而其它的客户端会创建失败（znode已存在），获取锁失败。</li>
-<li>持有锁的客户端访问共享资源完成后，将znode删掉，这样其它客户端接下来就能来获取锁了。</li>
-<li>znode应该被创建成ephemeral的。这是znode的一个特性，它保证如果创建znode的那个客户端崩溃了，那么相应的znode会被自动删除。这保证了锁一定会被释放。</li>
-</ul>
-<p><strong>实现方式二</strong></p>
-<ul>
-<li>创建一个临时顺序节点，通过临时顺序节点的序号来判断是否获取锁成功</li>
-<li>获取锁失败则监听上一个临时顺序节点（可以避免herd effect）</li>
-<li>解锁后通过watcher机制通知下一个节点获取锁成功</li>
-</ul>
-<p><strong>对比redlock</strong></p>
-<ul>
-<li>没有redlock的过期时间问题，能在需要的时候让锁自动释放。但是可能会由于session过期的问题，导致锁被其他客户端占有产生冲突。</li>
-<li>在正常情况下，客户端可以持有锁任意长的时间，这可以确保它做完所有需要的资源访问操作之后再释放锁。这避免了基于Redis的锁对于有效时间(lock validity time)到底设置多长的两难问题。实际上，基于ZooKeeper的锁是依靠Session（心跳）来维持锁的持有状态的，而Redis不支持Sesion。</li>
-<li>基于ZooKeeper的锁支持在获取锁失败之后等待锁重新释放的事件。这让客户端对锁的使用更加灵活。</li>
-</ul>
-<h3 id="chubby"><a href="#chubby" class="headerlink" title="chubby"></a>chubby</h3><p><strong>特性</strong></p>
-<ul>
-<li><strong>advisory lock</strong></li>
-<li><strong>coarse-grained（粗粒度的）</strong></li>
-<li><strong>paxos algo</strong></li>
-<li><strong>file system</strong></li>
-</ul>
-<p><strong>对比zookeeper、redlock</strong></p>
-<ul>
-<li>使用paxos协议保证一致性，只有一个master节点可以读写</li>
-<li>封装了lock api，使用起来更方便</li>
-<li>线性一致性</li>
-</ul>
-<p><strong>chubby解决延迟造成锁失效的机制</strong></p>
-<ul>
-<li>sequencer，类似于fencing token机制，锁的持有者可以随时请求一个sequencer，这是一个字节串，它由三部分组成：<ul>
-<li>锁的名字。</li>
-<li>锁的获取模式（排他锁还是共享锁）。</li>
-<li>lock generation number（一个64bit的单调递增数字）。作用相当于fencing token或epoch number。</li>
+<li>broker记录MessageId，直到投递成功后清除，重复的ID到来不做处理，这样只要发送者在清除周期内能够感知到消息投递成功，就基本不会在server端产生重复消息。</li>
+<li>对于server投递到consumer的消息，由于不确定对端是在处理过程中还是消息发送丢失的情况下，有必要记录下投递的IP地址。决定重发之前询问这个IP，消息处理成功了吗？如果询问无果，再重发。</li>
 </ul>
 </li>
 </ul>
-<p>客户端拿到sequencer之后，在操作资源的时候把它传给资源服务器。然后，资源服务器负责对sequencer的有效性进行检查。检查可以有两种方式：</p>
-<p>​        1、调用Chubby提供的API，CheckSequencer()，将整个sequencer传进去进行检查。这个检查是为了保证客户端持有的锁在进行资源访问的时候仍然有效。</p>
-<p>​        2、将客户端传来的sequencer与资源服务器当前观察到的最新的sequencer进行对比检查。可以理解为与Martin描述的对于fencing token的检查类似。</p>
+</li>
+<li><p>事务</p>
 <ul>
-<li>lock-delay<ul>
-<li>Chubby允许客户端为持有的锁指定一个lock-delay的时间值（默认是1分钟）。当Chubby发现客户端被动失去联系的时候，并不会立即释放锁，而是会在lock-delay指定的时间内阻止其它客户端获得这个锁。这是为了在把锁分配给新的客户端之前，让之前持有锁的客户端有充分的时间把请求队列排空(draining the queue)，尽量防止出现延迟到达的未处理请求。</li>
+<li>两阶段提交，分布式事务。<ul>
+<li>分布式事务存在的最大问题是成本太高，两阶段提交协议，对于仲裁down机或者单点故障，几乎是一个无解的黑洞</li>
+</ul>
+</li>
+<li>本地事务，本地落地，补偿发送<ul>
+<li>配置较为复杂，“绑架”业务方，必须本地数据库实例提供一个库表。</li>
+<li>对于消息延迟高敏感的业务不适用。</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p>性能相关</p>
+<ul>
+<li>异步/同步<ul>
+<li>服务端使用异步最大的好处：解放了线程和I/O（I/O合并和线程创建数量减少）</li>
+</ul>
+</li>
+<li>批量<ul>
+<li>减少无谓的请求头，如果你每个请求只有几字节，而头却有几十字节，无疑效率非常低下。</li>
+<li>减少回复的ack包个数。把请求合并后，ack包数量必然减少，确认和重发的成本就会降低。</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p>push/pull模式</p>
+<ul>
+<li>慢消费 - push模型致命伤，容易造成消息堆积。对于建立索引等慢消费，消息量有限且到来的速度不均匀的情况，pull模式比较合适</li>
+<li>消息延迟与忙等<ul>
+<li>解决方案<ul>
+<li>从短时间开始指数级增长等待。开始等5ms，然后10ms，然后20ms知道消息到来回到5ms。但是并不能完全解决延迟问题。</li>
+<li>rocketMq优化做法 - 长轮询，平衡推拉模型的各自缺点。消费者如果尝试拉取失败，不是直接return,而是把连接挂在那里wait,服务端如果有新的消息到来，把连接notify起来，这也是不错的思路。但海量的长连接block对系统的开销还是不容小觑的，还是要合理的评估时间间隔，给wait加一个时间上限比较好</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>顺序消息<ul>
+<li>pull模式较push模式容易做到全局顺序消息，主要因为push模式满消费是瓶颈，且全局顺序容易出现慢消费和消息堆积。</li>
+</ul>
+</li>
+</ul>
+</li>
 </ul>
 </li>
 </ul>
@@ -411,7 +576,7 @@
         <category>分布式系统设计</category>
       </categories>
       <tags>
-        <tag>分布式锁</tag>
+        <tag>消息队列</tag>
       </tags>
   </entry>
   <entry>
@@ -455,61 +620,6 @@
       </tags>
   </entry>
   <entry>
-    <title>亲缘性线程池</title>
-    <url>/posts/c63a112e/</url>
-    <content><![CDATA[<h4 id="亲缘性线程池"><a href="#亲缘性线程池" class="headerlink" title="亲缘性线程池"></a>亲缘性线程池</h4><ul>
-<li>亲缘性线程池指顺序投递多个任务后，能保证具有相同属性的任务顺序执行。</li>
-</ul>
-<p>JDK默认线程池是不具有亲缘性的</p>
-<ul>
-<li><p>开源实现： <a href="https://links.jianshu.com/go?to=https%3A%2F%2Fgithub.com%2FPhantomThief%2Fsimple-pool" target="_blank" rel="noopener">https://github.com/PhantomThief/simple-pool</a></p>
-</li>
-<li><ul>
-<li>实现原理</li>
-<li>KeyAffinityExecutor - 通过维护一个<Key-ListeningExecutor>的映射，将相同属性的任务放进同一个队列中，使用单个线程执行单个队列中的任务，达到亲缘性的目的。</li>
-</ul>
-</li>
-<li><p>存在问题思考</p>
-</li>
-<li><ul>
-<li>通过key散列后，只有单线程处理任务，如何应对大量的同属性任务问题</li>
-</ul>
-</li>
-<li><p>使用demo</p>
-</li>
-</ul>
-<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">SimplePoolTest</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">static</span> KeyAffinityExecutor executor = KeyAffinityExecutor.newSerializingExecutor(<span class="number">50</span>,<span class="number">5</span>,<span class="string">"my-pool"</span>);</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">main</span><span class="params">(String[] args)</span> </span>&#123;</span><br><span class="line">        List&lt;Person&gt; personList = <span class="keyword">new</span> ArrayList&lt;&gt;();</span><br><span class="line">        personList.add(Person.builder().id(<span class="number">1</span>).data(<span class="string">"1s"</span>).build());</span><br><span class="line">        personList.add(Person.builder().id(<span class="number">2</span>).data(<span class="string">"2s"</span>).build());</span><br><span class="line">        personList.add(Person.builder().id(<span class="number">1</span>).data(<span class="string">"11s"</span>).build());</span><br><span class="line">        personList.add(Person.builder().id(<span class="number">3</span>).data(<span class="string">"3s"</span>).build());</span><br><span class="line">        personList.add(Person.builder().id(<span class="number">1</span>).data(<span class="string">"111s"</span>).build());</span><br><span class="line">        personList.add(Person.builder().id(<span class="number">2</span>).data(<span class="string">"22s"</span>).build());</span><br><span class="line">        personList.add(Person.builder().id(<span class="number">3</span>).data(<span class="string">"33s"</span>).build());</span><br><span class="line">        personList.add(Person.builder().id(<span class="number">1</span>).data(<span class="string">"1111s"</span>).build());</span><br><span class="line">      </span><br><span class="line">        exceteBatch(personList);</span><br><span class="line"></span><br><span class="line">        System.exit(<span class="number">1</span>);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">exceteBatch</span><span class="params">(List&lt;Person&gt; personList)</span></span>&#123;</span><br><span class="line">        personList.forEach(p -&gt; executor.executeEx(p.getId(), () -&gt; &#123;</span><br><span class="line">            System.out.println(p);</span><br><span class="line">        &#125;));</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">static</span> <span class="class"><span class="keyword">class</span> <span class="title">Person</span></span>&#123;</span><br><span class="line">        Integer id;</span><br><span class="line"></span><br><span class="line">        String data;</span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">public</span> <span class="title">Person</span><span class="params">(Integer id,String data)</span></span>&#123;</span><br><span class="line">            <span class="keyword">this</span>.id = id;</span><br><span class="line">            <span class="keyword">this</span>.data = data;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">static</span> PersonBuilder <span class="title">builder</span><span class="params">()</span></span>&#123;</span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">new</span> PersonBuilder();</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">public</span> Integer <span class="title">getId</span><span class="params">()</span> </span>&#123;</span><br><span class="line">            <span class="keyword">return</span> id;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">setId</span><span class="params">(Integer id)</span> </span>&#123;</span><br><span class="line">            <span class="keyword">this</span>.id = id;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">public</span> String <span class="title">getData</span><span class="params">()</span> </span>&#123;</span><br><span class="line">            <span class="keyword">return</span> data;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">setData</span><span class="params">(String data)</span> </span>&#123;</span><br><span class="line">            <span class="keyword">this</span>.data = data;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="meta">@Override</span></span><br><span class="line">        <span class="function"><span class="keyword">public</span> String <span class="title">toString</span><span class="params">()</span> </span>&#123;</span><br><span class="line">            <span class="keyword">return</span> <span class="string">"Person&#123;"</span> +</span><br><span class="line">                    <span class="string">"id="</span> + id +</span><br><span class="line">                    <span class="string">", data='"</span> + data + <span class="string">'\''</span> +</span><br><span class="line">                    <span class="string">'&#125;'</span>;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">static</span> <span class="class"><span class="keyword">class</span> <span class="title">PersonBuilder</span></span>&#123;</span><br><span class="line">        Integer id;</span><br><span class="line"></span><br><span class="line">        String data;</span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">public</span> PersonBuilder <span class="title">id</span><span class="params">(Integer id)</span></span>&#123;</span><br><span class="line">            <span class="keyword">this</span>.id = id;</span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">this</span>;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="function"><span class="keyword">public</span> PersonBuilder <span class="title">data</span><span class="params">(String data)</span></span>&#123;</span><br><span class="line">            <span class="keyword">this</span>.data = data;</span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">this</span>;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="function"><span class="keyword">public</span> Person <span class="title">build</span><span class="params">()</span></span>&#123;</span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">new</span> Person(id,data);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>]]></content>
-      <categories>
-        <category>多线程</category>
-      </categories>
-      <tags>
-        <tag>线程池</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>工厂模式-创建型</title>
-    <url>/posts/21f4dc22/</url>
-    <content><![CDATA[<h3 id="简单工厂（静态工厂）"><a href="#简单工厂（静态工厂）" class="headerlink" title="简单工厂（静态工厂）"></a>简单工厂（静态工厂）</h3><p>第一种情况：类似规则配置解析的例子，代码中存在 if-else 分支判断，动态地根据不同的类型创建不同的对象。针对这种情况，我们就考虑使用工厂模式，将这一大坨 if-else 创建对象的代码抽离出来，放到工厂类中。</p>
-<p>还有一种情况，尽管我们不需要根据不同的类型创建不同的对象，但是，单个对象本身的创建过程比较复杂，比如前面提到的要组合其他类对象，做各种初始化操作。在这种情况下，我们也可以考虑使用工厂模式，将对象的创建过程封装到工厂类中。</p>
-<h3 id="工厂方法"><a href="#工厂方法" class="headerlink" title="工厂方法"></a>工厂方法</h3><p>基于简单工厂的抽象，解决简单工厂的if-else判断问题，使用抽象和多态将不同的创建方法分离到不同的类中。</p>
-<h3 id="抽象工厂"><a href="#抽象工厂" class="headerlink" title="抽象工厂"></a>抽象工厂</h3><p>可以同时创建不同产品族的对象。</p>
-<h4 id="工厂模式的作用"><a href="#工厂模式的作用" class="headerlink" title="工厂模式的作用"></a>工厂模式的作用</h4><ul>
-<li>封装变化：创建逻辑有可能变化，封装成工厂类之后，创建逻辑的变更对调用者透明。</li>
-<li>代码复用：创建代码抽离到独立的工厂类之后可以复用。</li>
-<li>隔离复杂性：封装复杂的创建逻辑，调用者无需了解如何创建对象。</li>
-<li>控制复杂度：将创建代码抽离出来，让原本的函数或类职责更单一，代码更简洁。</li>
-</ul>
-<h4 id="工厂模式与DI"><a href="#工厂模式与DI" class="headerlink" title="工厂模式与DI"></a>工厂模式与DI</h4><p>Dependency Injection是工厂模式的扩展，拥有比工厂模式更多的功能，如配置解析和对象生命周期管理。其核心逻辑主要包括：配置文件解析，以及根据配置文件通过“反射”语法来创建对象。其中，创建对象的过程就应用到了我们在学的工厂模式。对象创建、组装、管理完全有 DI 容器来负责，跟具体业务代码解耦，让程序员聚焦在业务代码的开发上。</p>
-<p><strong>Ps：总结自王争老师极客时间设计模式课程，侵删。</strong></p>
-]]></content>
-      <categories>
-        <category>设计模式</category>
-      </categories>
-      <tags>
-        <tag>创建型模式</tag>
-      </tags>
-  </entry>
-  <entry>
     <title>构造器模式-创建型</title>
     <url>/posts/5e6bf39b/</url>
     <content><![CDATA[<h4 id="为什么需要建造者模式"><a href="#为什么需要建造者模式" class="headerlink" title="为什么需要建造者模式"></a>为什么需要建造者模式</h4><p>如果一个类中有很多属性，为了避免构造函数的参数列表过长，影响代码的可读性和易用性，我们可以通过构造函数配合 set() 方法来解决。但是，如果存在下面情况中的任意一种，我们就要考虑使用建造者模式了。</p>
@@ -526,54 +636,6 @@
       </categories>
       <tags>
         <tag>创建型模式</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>行为型-观察者模式</title>
-    <url>/posts/c8efcbb/</url>
-    <content><![CDATA[<h4 id="定义"><a href="#定义" class="headerlink" title="定义"></a>定义</h4><p><strong>观察者模式</strong>（Observer Design Pattern）也被称为<strong>发布订阅模式</strong>（Publish-Subscribe Design Pattern）。在 GoF 的《设计模式》一书中，它的定义是这样的：</p>
-<p><strong><em>Define a one-to-many dependency between objects so that when one object changes state, all its dependents are notified and updated automatically.</em></strong></p>
-<p>一般情况下，被依赖的对象叫作被观察者（Observable），依赖的对象叫作观察者（Observer）。不过，在实际的项目开发中，这两种对象的称呼是比较灵活的，有各种不同的叫法，比如：Subject-Observer、Publisher-Subscriber、Producer-Consumer、EventEmitter-EventListener、Dispatcher-Listener。不管怎么称呼，只要应用场景符合刚刚给出的定义，都可以看作观察者模式。</p>
-<h4 id="基于不同场景的不同实现方式"><a href="#基于不同场景的不同实现方式" class="headerlink" title="基于不同场景的不同实现方式"></a>基于不同场景的不同实现方式</h4><p>小到代码层面的解耦，大到架构层面的系统解耦，再或者一些产品的设计思路，都有这种模式的影子，比如，邮件订阅、RSS Feeds，本质上都是观察者模式。不同的应用场景和需求下，这个模式也有截然不同的实现方式，有同步阻塞的实现方式，也有异步非阻塞的实现方式；有进程内的实现方式，也有跨进程的实现方式。</p>
-<h4 id="对比生产者-消费者模式"><a href="#对比生产者-消费者模式" class="headerlink" title="对比生产者-消费者模式"></a>对比生产者-消费者模式</h4><ul>
-<li>发布-订阅模型，是一对多的关系，可以以同步的方式实现，也可以以异步的方式实现。</li>
-<li>生产-消费模型，是多对多的关系，一般以异步的方式实现</li>
-</ul>
-<p>两者都可以达到解耦的作用</p>
-<h4 id="应用"><a href="#应用" class="headerlink" title="应用"></a>应用</h4><ol>
-<li>jdk自带实现</li>
-</ol>
-<p>jdk自带的观察者模式实现比较简单，通过实现<strong>Observer</strong>接口实现观察者，<strong>Observable</strong>类作为观察机制的控制中心，负责观察者的生命周期管理及被观察者变化的通知。</p>
-<p>核心类有两个：<strong>Observer</strong>接口和<strong>Observable</strong>类，简略代码如下（省略了部分非核心代码及注释）。</p>
-<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">interface</span> <span class="title">Observer</span> </span>&#123;</span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">update</span><span class="params">(Observable o, Object arg)</span></span>;</span><br><span class="line">&#125;</span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">Observable</span> </span>&#123;</span><br><span class="line">    <span class="comment">// 核心变量，标记被观察者是否发生了变化</span></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">boolean</span> changed = <span class="keyword">false</span>;</span><br><span class="line">    <span class="comment">// 核心变量，观察者集合</span></span><br><span class="line">    <span class="keyword">private</span> Vector&lt;Observer&gt; obs;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="title">Observable</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        obs = <span class="keyword">new</span> Vector&lt;&gt;();</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 注册观察者</span></span><br><span class="line"><span class="comment">     **/</span> </span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">synchronized</span> <span class="keyword">void</span> <span class="title">addObserver</span><span class="params">(Observer o)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">if</span> (o == <span class="keyword">null</span>)</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> NullPointerException();</span><br><span class="line">        <span class="keyword">if</span> (!obs.contains(o)) &#123;</span><br><span class="line">            obs.addElement(o);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">        </span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 删除观察者</span></span><br><span class="line"><span class="comment">     **/</span> </span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">synchronized</span> <span class="keyword">void</span> <span class="title">deleteObserver</span><span class="params">(Observer o)</span> </span>&#123;</span><br><span class="line">        obs.removeElement(o);</span><br><span class="line">    &#125;</span><br><span class="line">     </span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 通知变化</span></span><br><span class="line"><span class="comment">     **/</span> </span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">notifyObservers</span><span class="params">(Object arg)</span> </span>&#123; </span><br><span class="line">        Object[] arrLocal;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">synchronized</span> (<span class="keyword">this</span>) &#123;</span><br><span class="line">            <span class="keyword">if</span> (!changed)</span><br><span class="line">                <span class="keyword">return</span>;</span><br><span class="line">            arrLocal = obs.toArray();</span><br><span class="line">            clearChanged();</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">for</span> (<span class="keyword">int</span> i = arrLocal.length-<span class="number">1</span>; i&gt;=<span class="number">0</span>; i--)</span><br><span class="line">            ((Observer)arrLocal[i]).update(<span class="keyword">this</span>, arg);</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    <span class="function"><span class="keyword">protected</span> <span class="keyword">synchronized</span> <span class="keyword">void</span> <span class="title">setChanged</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        changed = <span class="keyword">true</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    <span class="function"><span class="keyword">protected</span> <span class="keyword">synchronized</span> <span class="keyword">void</span> <span class="title">clearChanged</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        changed = <span class="keyword">false</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">synchronized</span> <span class="keyword">boolean</span> <span class="title">hasChanged</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> changed;</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">synchronized</span> <span class="keyword">int</span> <span class="title">countObservers</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> obs.size();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>使用demo</p>
-<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> *  状态变更watcher</span></span><br><span class="line"><span class="comment"> **/</span></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">StatusWatcher</span> <span class="keyword">extends</span> <span class="title">Observable</span> </span>&#123;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">setStatus</span><span class="params">(String status)</span></span>&#123;</span><br><span class="line">        System.out.println(<span class="string">"status change~~~~~~~~~~"</span>);</span><br><span class="line">        setChanged();</span><br><span class="line">        notifyObservers(status);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> *  状态变更observer</span></span><br><span class="line"><span class="comment"> **/</span></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">StatusObserverImpl</span> <span class="keyword">implements</span> <span class="title">Observer</span> </span>&#123;</span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">update</span><span class="params">(Observable o, Object arg)</span> </span>&#123;</span><br><span class="line">        System.out.println(<span class="string">"notify~~~ arg:"</span> + arg);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 1、通过继承的方式实现观察者控制中心</span></span><br><span class="line"><span class="comment">// 2、实现Observer接口实现自己的观察者</span></span><br><span class="line"><span class="comment">// 3、调用setChanged()设置变更状态</span></span><br><span class="line"><span class="comment">// 4、调用notifyObservers(Obj)通知观察者</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">main</span><span class="params">(String[] args)</span> </span>&#123;</span><br><span class="line">    StatusWatcher watcher = <span class="keyword">new</span> StatusWatcher();</span><br><span class="line">    watcher.addObserver(<span class="keyword">new</span> StatusObserverImpl());</span><br><span class="line"></span><br><span class="line">    watcher.setStatus(<span class="string">"gggg"</span>);</span><br><span class="line">    watcher.setStatus(<span class="string">"oooo"</span>);</span><br><span class="line"></span><br><span class="line">    System.out.println(<span class="string">"~~~~~~end"</span>);</span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<ol start="2">
-<li>guava实现</li>
-</ol>
-<p>guava相对于jdk的实现来说功能更加丰富了一些，支持根据不同的入参唤醒不同的观察者，支持异步非阻塞的通知机制。</p>
-<p>核心类：<strong>EventBus</strong>（事件总线）、<strong>Subscriber</strong>（观察者）、<strong>Dispatcher</strong>（事件分发器），核心代码如下</p>
-<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="meta">@Beta</span></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">EventBus</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> Logger logger = Logger.getLogger(EventBus<span class="class">.<span class="keyword">class</span>.<span class="title">getName</span>())</span>;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">private</span> <span class="keyword">final</span> String identifier;</span><br><span class="line">  <span class="keyword">private</span> <span class="keyword">final</span> Executor executor;</span><br><span class="line">  <span class="keyword">private</span> <span class="keyword">final</span> SubscriberExceptionHandler exceptionHandler;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">private</span> <span class="keyword">final</span> SubscriberRegistry subscribers = <span class="keyword">new</span> SubscriberRegistry(<span class="keyword">this</span>);</span><br><span class="line">  <span class="keyword">private</span> <span class="keyword">final</span> Dispatcher dispatcher;</span><br><span class="line"></span><br><span class="line">  EventBus(</span><br><span class="line">      String identifier,</span><br><span class="line">      Executor executor,</span><br><span class="line">      Dispatcher dispatcher,</span><br><span class="line">      SubscriberExceptionHandler exceptionHandler) &#123;</span><br><span class="line">    <span class="keyword">this</span>.identifier = checkNotNull(identifier);</span><br><span class="line">    <span class="keyword">this</span>.executor = checkNotNull(executor);</span><br><span class="line">    <span class="keyword">this</span>.dispatcher = checkNotNull(dispatcher);</span><br><span class="line">    <span class="keyword">this</span>.exceptionHandler = checkNotNull(exceptionHandler);</span><br><span class="line">  &#125;</span><br><span class="line">    </span><br><span class="line">  <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">register</span><span class="params">(Object object)</span> </span>&#123;</span><br><span class="line">    subscribers.register(object);</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">unregister</span><span class="params">(Object object)</span> </span>&#123;</span><br><span class="line">    subscribers.unregister(object);</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">post</span><span class="params">(Object event)</span> </span>&#123;</span><br><span class="line">    Iterator&lt;Subscriber&gt; eventSubscribers = subscribers.getSubscribers(event);</span><br><span class="line">    <span class="keyword">if</span> (eventSubscribers.hasNext()) &#123;</span><br><span class="line">      dispatcher.dispatch(event, eventSubscribers);</span><br><span class="line">    &#125; <span class="keyword">else</span> <span class="keyword">if</span> (!(event <span class="keyword">instanceof</span> DeadEvent)) &#123;</span><br><span class="line">      <span class="comment">// the event had no subscribers and was not itself a DeadEvent</span></span><br><span class="line">      post(<span class="keyword">new</span> DeadEvent(<span class="keyword">this</span>, event));</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Subscriber</span> </span>&#123;</span><br><span class="line">   <span class="function"><span class="keyword">static</span> Subscriber <span class="title">create</span><span class="params">(EventBus bus, Object listener, Method method)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> isDeclaredThreadSafe(method)</span><br><span class="line">        ? <span class="keyword">new</span> Subscriber(bus, listener, method)</span><br><span class="line">        : <span class="keyword">new</span> SynchronizedSubscriber(bus, listener, method);</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="comment">/** The event bus this subscriber belongs to. */</span></span><br><span class="line">  <span class="meta">@Weak</span> <span class="keyword">private</span> EventBus bus;</span><br><span class="line"></span><br><span class="line">  <span class="comment">/** The object with the subscriber method. */</span></span><br><span class="line">  <span class="meta">@VisibleForTesting</span> <span class="keyword">final</span> Object target;</span><br><span class="line"></span><br><span class="line">  <span class="comment">/** Subscriber method. */</span></span><br><span class="line">  <span class="keyword">private</span> <span class="keyword">final</span> Method method;</span><br><span class="line"></span><br><span class="line">  <span class="comment">/** Executor to use for dispatching events to this subscriber. */</span></span><br><span class="line">  <span class="keyword">private</span> <span class="keyword">final</span> Executor executor;</span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="keyword">private</span> <span class="title">Subscriber</span><span class="params">(EventBus bus, Object target, Method method)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">this</span>.bus = bus;</span><br><span class="line">    <span class="keyword">this</span>.target = checkNotNull(target);</span><br><span class="line">    <span class="keyword">this</span>.method = method;</span><br><span class="line">    method.setAccessible(<span class="keyword">true</span>);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">this</span>.executor = bus.executor();</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="comment">/** Dispatches &#123;<span class="doctag">@code</span> event&#125; to this subscriber using the proper executor. */</span></span><br><span class="line">  <span class="function"><span class="keyword">final</span> <span class="keyword">void</span> <span class="title">dispatchEvent</span><span class="params">(<span class="keyword">final</span> Object event)</span> </span>&#123;</span><br><span class="line">    executor.execute(</span><br><span class="line">        <span class="keyword">new</span> Runnable() &#123;</span><br><span class="line">          <span class="meta">@Override</span></span><br><span class="line">          <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">run</span><span class="params">()</span> </span>&#123;</span><br><span class="line">            <span class="keyword">try</span> &#123;</span><br><span class="line">              invokeSubscriberMethod(event);</span><br><span class="line">            &#125; <span class="keyword">catch</span> (InvocationTargetException e) &#123;</span><br><span class="line">              bus.handleSubscriberException(e.getCause(), context(event));</span><br><span class="line">            &#125;</span><br><span class="line">          &#125;</span><br><span class="line">        &#125;);</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="comment">/**</span></span><br><span class="line"><span class="comment">   * Invokes the subscriber method. This method can be overridden to make the invocation</span></span><br><span class="line"><span class="comment">   * synchronized.</span></span><br><span class="line"><span class="comment">   */</span></span><br><span class="line">  <span class="meta">@VisibleForTesting</span></span><br><span class="line">  <span class="function"><span class="keyword">void</span> <span class="title">invokeSubscriberMethod</span><span class="params">(Object event)</span> <span class="keyword">throws</span> InvocationTargetException </span>&#123;</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">      method.invoke(target, checkNotNull(event));</span><br><span class="line">    &#125; <span class="keyword">catch</span> (IllegalArgumentException e) &#123;</span><br><span class="line">      <span class="keyword">throw</span> <span class="keyword">new</span> Error(<span class="string">"Method rejected target/argument: "</span> + event, e);</span><br><span class="line">    &#125; <span class="keyword">catch</span> (IllegalAccessException e) &#123;</span><br><span class="line">      <span class="keyword">throw</span> <span class="keyword">new</span> Error(<span class="string">"Method became inaccessible: "</span> + event, e);</span><br><span class="line">    &#125; <span class="keyword">catch</span> (InvocationTargetException e) &#123;</span><br><span class="line">      <span class="keyword">if</span> (e.getCause() <span class="keyword">instanceof</span> Error) &#123;</span><br><span class="line">        <span class="keyword">throw</span> (Error) e.getCause();</span><br><span class="line">      &#125;</span><br><span class="line">      <span class="keyword">throw</span> e;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br><span class="line"><span class="keyword">abstract</span> <span class="class"><span class="keyword">class</span> <span class="title">Dispatcher</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="keyword">static</span> Dispatcher <span class="title">perThreadDispatchQueue</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> PerThreadQueuedDispatcher();</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="keyword">static</span> Dispatcher <span class="title">legacyAsync</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> LegacyAsyncDispatcher();</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="keyword">static</span> Dispatcher <span class="title">immediate</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> ImmediateDispatcher.INSTANCE;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="keyword">abstract</span> <span class="keyword">void</span> <span class="title">dispatch</span><span class="params">(Object event, Iterator&lt;Subscriber&gt; subscribers)</span></span>;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="class"><span class="keyword">class</span> <span class="title">PerThreadQueuedDispatcher</span> <span class="keyword">extends</span> <span class="title">Dispatcher</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">private</span> <span class="keyword">final</span> ThreadLocal&lt;Queue&lt;Event&gt;&gt; queue =</span><br><span class="line">        <span class="keyword">new</span> ThreadLocal&lt;Queue&lt;Event&gt;&gt;() &#123;</span><br><span class="line">          <span class="meta">@Override</span></span><br><span class="line">          <span class="function"><span class="keyword">protected</span> Queue&lt;Event&gt; <span class="title">initialValue</span><span class="params">()</span> </span>&#123;</span><br><span class="line">            <span class="keyword">return</span> Queues.newArrayDeque();</span><br><span class="line">          &#125;</span><br><span class="line">        &#125;;</span><br><span class="line">      </span><br><span class="line">   <span class="keyword">private</span> <span class="keyword">final</span> ThreadLocal&lt;Boolean&gt; dispatching =</span><br><span class="line">       <span class="keyword">new</span> ThreadLocal&lt;Boolean&gt;() &#123;</span><br><span class="line">       <span class="meta">@Override</span></span><br><span class="line">       <span class="function"><span class="keyword">protected</span> Boolean <span class="title">initialValue</span><span class="params">()</span> </span>&#123;</span><br><span class="line">           <span class="keyword">return</span> <span class="keyword">false</span>;</span><br><span class="line">       &#125;</span><br><span class="line">    &#125;;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">dispatch</span><span class="params">(Object event, Iterator&lt;Subscriber&gt; subscribers)</span> </span>&#123;</span><br><span class="line">      checkNotNull(event);</span><br><span class="line">      checkNotNull(subscribers);</span><br><span class="line">      Queue&lt;Event&gt; queueForThread = queue.get();</span><br><span class="line">      queueForThread.offer(<span class="keyword">new</span> Event(event, subscribers));</span><br><span class="line"></span><br><span class="line">      <span class="keyword">if</span> (!dispatching.get()) &#123;</span><br><span class="line">        dispatching.set(<span class="keyword">true</span>);</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">          Event nextEvent;</span><br><span class="line">          <span class="keyword">while</span> ((nextEvent = queueForThread.poll()) != <span class="keyword">null</span>) &#123;</span><br><span class="line">            <span class="keyword">while</span> (nextEvent.subscribers.hasNext()) &#123;</span><br><span class="line">              nextEvent.subscribers.next().dispatchEvent(nextEvent.event);</span><br><span class="line">            &#125;</span><br><span class="line">          &#125;</span><br><span class="line">        &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">          dispatching.remove();</span><br><span class="line">          queue.remove();</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>demo</p>
-<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">OtherSubscriber</span> </span>&#123;</span><br><span class="line">    <span class="meta">@Subscribe</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">printStatus</span><span class="params">(Integer status)</span></span>&#123;</span><br><span class="line">        System.out.println(<span class="string">"subscriber  success + status : "</span> + status);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">StatusSubscriber</span> </span>&#123;</span><br><span class="line">    <span class="meta">@Subscribe</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">printStatus</span><span class="params">(String status)</span></span>&#123;</span><br><span class="line">        System.out.println(<span class="string">"subscriber  success + status : "</span> + status);</span><br><span class="line">    &#125;</span><br><span class="line">&#125; </span><br><span class="line"><span class="comment">// guava的观察者机制相对于jdk来说使用起来更加简便，同时支持通知消息的分类及非阻塞方式的实现</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">main</span><span class="params">(String[] args)</span> </span>&#123;</span><br><span class="line">        EventBus eventBus = <span class="keyword">new</span> EventBus();</span><br><span class="line">        eventBus.register(<span class="keyword">new</span> StatusSubscriber());</span><br><span class="line">        eventBus.register(<span class="keyword">new</span> OtherSubscriber());</span><br><span class="line"></span><br><span class="line">        eventBus.post(<span class="string">"ssss"</span>);</span><br><span class="line">        eventBus.post(<span class="number">1</span>);</span><br><span class="line"></span><br><span class="line">        System.out.println(<span class="string">"end~~~~~~"</span>);</span><br><span class="line"> &#125;</span><br></pre></td></tr></table></figure>
-
-<ol start="3">
-<li>spring框架实现</li>
-</ol>
-<p>spring自带实现最大的优势是所有的对象都可以交给spring去管理。大体功能和guava类似。</p>
-<p>核心类：<strong>ApplicationEventPublisher</strong>（事件发布类）、<strong>ApplicationListener</strong>（事件监听器），代码如下</p>
-<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="comment">// 事件</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">abstract</span> <span class="class"><span class="keyword">class</span> <span class="title">ApplicationEvent</span> <span class="keyword">extends</span> <span class="title">EventObject</span> </span>&#123;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">long</span> serialVersionUID = <span class="number">7099057708183571937L</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">final</span> <span class="keyword">long</span> timestamp;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="title">ApplicationEvent</span><span class="params">(Object source)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">super</span>(source);</span><br><span class="line">        <span class="keyword">this</span>.timestamp = System.currentTimeMillis();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">final</span> <span class="keyword">long</span> <span class="title">getTimestamp</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">this</span>.timestamp;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 事件发布者</span></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">interface</span> <span class="title">ApplicationEventPublisher</span> </span>&#123;</span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">publishEvent</span><span class="params">(ApplicationEvent event)</span></span>;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">publishEvent</span><span class="params">(Object event)</span></span>;</span><br><span class="line"></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 事件监听者</span></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">interface</span> <span class="title">ApplicationListener</span>&lt;<span class="title">E</span> <span class="keyword">extends</span> <span class="title">ApplicationEvent</span>&gt; <span class="keyword">extends</span> <span class="title">EventListener</span> </span>&#123;</span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * Handle an application event.</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> event the event to respond to</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">onApplicationEvent</span><span class="params">(E event)</span></span>;</span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>demo</p>
-<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">EventNotify</span> <span class="keyword">implements</span> <span class="title">ApplicationContextAware</span> </span>&#123;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> ThreadPoolExecutor executor;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> ApplicationContext applicationContext;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">static</span> &#123;</span><br><span class="line">        executor = ThreadPoolExecutorFactory.of(<span class="string">"ApplicationEventSender"</span>,<span class="number">4</span>,<span class="number">10</span>,ThreadPoolExecutorFactory.CALLER_RUNER);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">notifyListener</span><span class="params">(<span class="keyword">final</span> ApplicationEvent event)</span></span>&#123;</span><br><span class="line">        <span class="keyword">if</span>(event != <span class="keyword">null</span>)&#123;</span><br><span class="line">            executor.submit(() -&gt; applicationContext.publishEvent(event));</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">setApplicationContext</span><span class="params">(ApplicationContext applicationContext)</span> </span>&#123;</span><br><span class="line">        EventNotify.applicationContext = applicationContext;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">EventNotify.notifyListener(<span class="keyword">new</span> UserRoleChangeEvent(<span class="keyword">this</span>,userRoleForm.getUid()));</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">UserRoleChangeListener</span> </span>&#123;</span><br><span class="line">    <span class="meta">@Autowired</span></span><br><span class="line">    <span class="keyword">private</span> UserRoleChangeHandler userRoleChangeHandler;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@EventListener</span>(classes = UserRoleChangeEvent<span class="class">.<span class="keyword">class</span>)</span></span><br><span class="line"><span class="class">    <span class="title">public</span> <span class="title">void</span> <span class="title">receiveEvent</span>(<span class="title">final</span> <span class="title">UserRoleChangeEvent</span> <span class="title">event</span>)</span>&#123;</span><br><span class="line">        log.info(<span class="string">"【UserRoleChange】event:&#123;&#125;"</span>, JSON.toJSONString(event));</span><br><span class="line">        userRoleChangeHandler.rolechange(event.getRoleId());</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>]]></content>
-      <categories>
-        <category>设计模式</category>
-      </categories>
-      <tags>
-        <tag>行为型模式</tag>
       </tags>
   </entry>
   <entry>
@@ -682,6 +744,54 @@
       </categories>
       <tags>
         <tag>设计原则</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>行为型-观察者模式</title>
+    <url>/posts/c8efcbb/</url>
+    <content><![CDATA[<h4 id="定义"><a href="#定义" class="headerlink" title="定义"></a>定义</h4><p><strong>观察者模式</strong>（Observer Design Pattern）也被称为<strong>发布订阅模式</strong>（Publish-Subscribe Design Pattern）。在 GoF 的《设计模式》一书中，它的定义是这样的：</p>
+<p><strong><em>Define a one-to-many dependency between objects so that when one object changes state, all its dependents are notified and updated automatically.</em></strong></p>
+<p>一般情况下，被依赖的对象叫作被观察者（Observable），依赖的对象叫作观察者（Observer）。不过，在实际的项目开发中，这两种对象的称呼是比较灵活的，有各种不同的叫法，比如：Subject-Observer、Publisher-Subscriber、Producer-Consumer、EventEmitter-EventListener、Dispatcher-Listener。不管怎么称呼，只要应用场景符合刚刚给出的定义，都可以看作观察者模式。</p>
+<h4 id="基于不同场景的不同实现方式"><a href="#基于不同场景的不同实现方式" class="headerlink" title="基于不同场景的不同实现方式"></a>基于不同场景的不同实现方式</h4><p>小到代码层面的解耦，大到架构层面的系统解耦，再或者一些产品的设计思路，都有这种模式的影子，比如，邮件订阅、RSS Feeds，本质上都是观察者模式。不同的应用场景和需求下，这个模式也有截然不同的实现方式，有同步阻塞的实现方式，也有异步非阻塞的实现方式；有进程内的实现方式，也有跨进程的实现方式。</p>
+<h4 id="对比生产者-消费者模式"><a href="#对比生产者-消费者模式" class="headerlink" title="对比生产者-消费者模式"></a>对比生产者-消费者模式</h4><ul>
+<li>发布-订阅模型，是一对多的关系，可以以同步的方式实现，也可以以异步的方式实现。</li>
+<li>生产-消费模型，是多对多的关系，一般以异步的方式实现</li>
+</ul>
+<p>两者都可以达到解耦的作用</p>
+<h4 id="应用"><a href="#应用" class="headerlink" title="应用"></a>应用</h4><ol>
+<li>jdk自带实现</li>
+</ol>
+<p>jdk自带的观察者模式实现比较简单，通过实现<strong>Observer</strong>接口实现观察者，<strong>Observable</strong>类作为观察机制的控制中心，负责观察者的生命周期管理及被观察者变化的通知。</p>
+<p>核心类有两个：<strong>Observer</strong>接口和<strong>Observable</strong>类，简略代码如下（省略了部分非核心代码及注释）。</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">interface</span> <span class="title">Observer</span> </span>&#123;</span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">update</span><span class="params">(Observable o, Object arg)</span></span>;</span><br><span class="line">&#125;</span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">Observable</span> </span>&#123;</span><br><span class="line">    <span class="comment">// 核心变量，标记被观察者是否发生了变化</span></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">boolean</span> changed = <span class="keyword">false</span>;</span><br><span class="line">    <span class="comment">// 核心变量，观察者集合</span></span><br><span class="line">    <span class="keyword">private</span> Vector&lt;Observer&gt; obs;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="title">Observable</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        obs = <span class="keyword">new</span> Vector&lt;&gt;();</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 注册观察者</span></span><br><span class="line"><span class="comment">     **/</span> </span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">synchronized</span> <span class="keyword">void</span> <span class="title">addObserver</span><span class="params">(Observer o)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">if</span> (o == <span class="keyword">null</span>)</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> NullPointerException();</span><br><span class="line">        <span class="keyword">if</span> (!obs.contains(o)) &#123;</span><br><span class="line">            obs.addElement(o);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">        </span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 删除观察者</span></span><br><span class="line"><span class="comment">     **/</span> </span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">synchronized</span> <span class="keyword">void</span> <span class="title">deleteObserver</span><span class="params">(Observer o)</span> </span>&#123;</span><br><span class="line">        obs.removeElement(o);</span><br><span class="line">    &#125;</span><br><span class="line">     </span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 通知变化</span></span><br><span class="line"><span class="comment">     **/</span> </span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">notifyObservers</span><span class="params">(Object arg)</span> </span>&#123; </span><br><span class="line">        Object[] arrLocal;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">synchronized</span> (<span class="keyword">this</span>) &#123;</span><br><span class="line">            <span class="keyword">if</span> (!changed)</span><br><span class="line">                <span class="keyword">return</span>;</span><br><span class="line">            arrLocal = obs.toArray();</span><br><span class="line">            clearChanged();</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">for</span> (<span class="keyword">int</span> i = arrLocal.length-<span class="number">1</span>; i&gt;=<span class="number">0</span>; i--)</span><br><span class="line">            ((Observer)arrLocal[i]).update(<span class="keyword">this</span>, arg);</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    <span class="function"><span class="keyword">protected</span> <span class="keyword">synchronized</span> <span class="keyword">void</span> <span class="title">setChanged</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        changed = <span class="keyword">true</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    <span class="function"><span class="keyword">protected</span> <span class="keyword">synchronized</span> <span class="keyword">void</span> <span class="title">clearChanged</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        changed = <span class="keyword">false</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">synchronized</span> <span class="keyword">boolean</span> <span class="title">hasChanged</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> changed;</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">synchronized</span> <span class="keyword">int</span> <span class="title">countObservers</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> obs.size();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>使用demo</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> *  状态变更watcher</span></span><br><span class="line"><span class="comment"> **/</span></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">StatusWatcher</span> <span class="keyword">extends</span> <span class="title">Observable</span> </span>&#123;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">setStatus</span><span class="params">(String status)</span></span>&#123;</span><br><span class="line">        System.out.println(<span class="string">"status change~~~~~~~~~~"</span>);</span><br><span class="line">        setChanged();</span><br><span class="line">        notifyObservers(status);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> *  状态变更observer</span></span><br><span class="line"><span class="comment"> **/</span></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">StatusObserverImpl</span> <span class="keyword">implements</span> <span class="title">Observer</span> </span>&#123;</span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">update</span><span class="params">(Observable o, Object arg)</span> </span>&#123;</span><br><span class="line">        System.out.println(<span class="string">"notify~~~ arg:"</span> + arg);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 1、通过继承的方式实现观察者控制中心</span></span><br><span class="line"><span class="comment">// 2、实现Observer接口实现自己的观察者</span></span><br><span class="line"><span class="comment">// 3、调用setChanged()设置变更状态</span></span><br><span class="line"><span class="comment">// 4、调用notifyObservers(Obj)通知观察者</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">main</span><span class="params">(String[] args)</span> </span>&#123;</span><br><span class="line">    StatusWatcher watcher = <span class="keyword">new</span> StatusWatcher();</span><br><span class="line">    watcher.addObserver(<span class="keyword">new</span> StatusObserverImpl());</span><br><span class="line"></span><br><span class="line">    watcher.setStatus(<span class="string">"gggg"</span>);</span><br><span class="line">    watcher.setStatus(<span class="string">"oooo"</span>);</span><br><span class="line"></span><br><span class="line">    System.out.println(<span class="string">"~~~~~~end"</span>);</span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<ol start="2">
+<li>guava实现</li>
+</ol>
+<p>guava相对于jdk的实现来说功能更加丰富了一些，支持根据不同的入参唤醒不同的观察者，支持异步非阻塞的通知机制。</p>
+<p>核心类：<strong>EventBus</strong>（事件总线）、<strong>Subscriber</strong>（观察者）、<strong>Dispatcher</strong>（事件分发器），核心代码如下</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="meta">@Beta</span></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">EventBus</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> Logger logger = Logger.getLogger(EventBus<span class="class">.<span class="keyword">class</span>.<span class="title">getName</span>())</span>;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">private</span> <span class="keyword">final</span> String identifier;</span><br><span class="line">  <span class="keyword">private</span> <span class="keyword">final</span> Executor executor;</span><br><span class="line">  <span class="keyword">private</span> <span class="keyword">final</span> SubscriberExceptionHandler exceptionHandler;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">private</span> <span class="keyword">final</span> SubscriberRegistry subscribers = <span class="keyword">new</span> SubscriberRegistry(<span class="keyword">this</span>);</span><br><span class="line">  <span class="keyword">private</span> <span class="keyword">final</span> Dispatcher dispatcher;</span><br><span class="line"></span><br><span class="line">  EventBus(</span><br><span class="line">      String identifier,</span><br><span class="line">      Executor executor,</span><br><span class="line">      Dispatcher dispatcher,</span><br><span class="line">      SubscriberExceptionHandler exceptionHandler) &#123;</span><br><span class="line">    <span class="keyword">this</span>.identifier = checkNotNull(identifier);</span><br><span class="line">    <span class="keyword">this</span>.executor = checkNotNull(executor);</span><br><span class="line">    <span class="keyword">this</span>.dispatcher = checkNotNull(dispatcher);</span><br><span class="line">    <span class="keyword">this</span>.exceptionHandler = checkNotNull(exceptionHandler);</span><br><span class="line">  &#125;</span><br><span class="line">    </span><br><span class="line">  <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">register</span><span class="params">(Object object)</span> </span>&#123;</span><br><span class="line">    subscribers.register(object);</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">unregister</span><span class="params">(Object object)</span> </span>&#123;</span><br><span class="line">    subscribers.unregister(object);</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">post</span><span class="params">(Object event)</span> </span>&#123;</span><br><span class="line">    Iterator&lt;Subscriber&gt; eventSubscribers = subscribers.getSubscribers(event);</span><br><span class="line">    <span class="keyword">if</span> (eventSubscribers.hasNext()) &#123;</span><br><span class="line">      dispatcher.dispatch(event, eventSubscribers);</span><br><span class="line">    &#125; <span class="keyword">else</span> <span class="keyword">if</span> (!(event <span class="keyword">instanceof</span> DeadEvent)) &#123;</span><br><span class="line">      <span class="comment">// the event had no subscribers and was not itself a DeadEvent</span></span><br><span class="line">      post(<span class="keyword">new</span> DeadEvent(<span class="keyword">this</span>, event));</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Subscriber</span> </span>&#123;</span><br><span class="line">   <span class="function"><span class="keyword">static</span> Subscriber <span class="title">create</span><span class="params">(EventBus bus, Object listener, Method method)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> isDeclaredThreadSafe(method)</span><br><span class="line">        ? <span class="keyword">new</span> Subscriber(bus, listener, method)</span><br><span class="line">        : <span class="keyword">new</span> SynchronizedSubscriber(bus, listener, method);</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="comment">/** The event bus this subscriber belongs to. */</span></span><br><span class="line">  <span class="meta">@Weak</span> <span class="keyword">private</span> EventBus bus;</span><br><span class="line"></span><br><span class="line">  <span class="comment">/** The object with the subscriber method. */</span></span><br><span class="line">  <span class="meta">@VisibleForTesting</span> <span class="keyword">final</span> Object target;</span><br><span class="line"></span><br><span class="line">  <span class="comment">/** Subscriber method. */</span></span><br><span class="line">  <span class="keyword">private</span> <span class="keyword">final</span> Method method;</span><br><span class="line"></span><br><span class="line">  <span class="comment">/** Executor to use for dispatching events to this subscriber. */</span></span><br><span class="line">  <span class="keyword">private</span> <span class="keyword">final</span> Executor executor;</span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="keyword">private</span> <span class="title">Subscriber</span><span class="params">(EventBus bus, Object target, Method method)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">this</span>.bus = bus;</span><br><span class="line">    <span class="keyword">this</span>.target = checkNotNull(target);</span><br><span class="line">    <span class="keyword">this</span>.method = method;</span><br><span class="line">    method.setAccessible(<span class="keyword">true</span>);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">this</span>.executor = bus.executor();</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="comment">/** Dispatches &#123;<span class="doctag">@code</span> event&#125; to this subscriber using the proper executor. */</span></span><br><span class="line">  <span class="function"><span class="keyword">final</span> <span class="keyword">void</span> <span class="title">dispatchEvent</span><span class="params">(<span class="keyword">final</span> Object event)</span> </span>&#123;</span><br><span class="line">    executor.execute(</span><br><span class="line">        <span class="keyword">new</span> Runnable() &#123;</span><br><span class="line">          <span class="meta">@Override</span></span><br><span class="line">          <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">run</span><span class="params">()</span> </span>&#123;</span><br><span class="line">            <span class="keyword">try</span> &#123;</span><br><span class="line">              invokeSubscriberMethod(event);</span><br><span class="line">            &#125; <span class="keyword">catch</span> (InvocationTargetException e) &#123;</span><br><span class="line">              bus.handleSubscriberException(e.getCause(), context(event));</span><br><span class="line">            &#125;</span><br><span class="line">          &#125;</span><br><span class="line">        &#125;);</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="comment">/**</span></span><br><span class="line"><span class="comment">   * Invokes the subscriber method. This method can be overridden to make the invocation</span></span><br><span class="line"><span class="comment">   * synchronized.</span></span><br><span class="line"><span class="comment">   */</span></span><br><span class="line">  <span class="meta">@VisibleForTesting</span></span><br><span class="line">  <span class="function"><span class="keyword">void</span> <span class="title">invokeSubscriberMethod</span><span class="params">(Object event)</span> <span class="keyword">throws</span> InvocationTargetException </span>&#123;</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">      method.invoke(target, checkNotNull(event));</span><br><span class="line">    &#125; <span class="keyword">catch</span> (IllegalArgumentException e) &#123;</span><br><span class="line">      <span class="keyword">throw</span> <span class="keyword">new</span> Error(<span class="string">"Method rejected target/argument: "</span> + event, e);</span><br><span class="line">    &#125; <span class="keyword">catch</span> (IllegalAccessException e) &#123;</span><br><span class="line">      <span class="keyword">throw</span> <span class="keyword">new</span> Error(<span class="string">"Method became inaccessible: "</span> + event, e);</span><br><span class="line">    &#125; <span class="keyword">catch</span> (InvocationTargetException e) &#123;</span><br><span class="line">      <span class="keyword">if</span> (e.getCause() <span class="keyword">instanceof</span> Error) &#123;</span><br><span class="line">        <span class="keyword">throw</span> (Error) e.getCause();</span><br><span class="line">      &#125;</span><br><span class="line">      <span class="keyword">throw</span> e;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br><span class="line"><span class="keyword">abstract</span> <span class="class"><span class="keyword">class</span> <span class="title">Dispatcher</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="keyword">static</span> Dispatcher <span class="title">perThreadDispatchQueue</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> PerThreadQueuedDispatcher();</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="keyword">static</span> Dispatcher <span class="title">legacyAsync</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> LegacyAsyncDispatcher();</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="keyword">static</span> Dispatcher <span class="title">immediate</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> ImmediateDispatcher.INSTANCE;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="keyword">abstract</span> <span class="keyword">void</span> <span class="title">dispatch</span><span class="params">(Object event, Iterator&lt;Subscriber&gt; subscribers)</span></span>;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="class"><span class="keyword">class</span> <span class="title">PerThreadQueuedDispatcher</span> <span class="keyword">extends</span> <span class="title">Dispatcher</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">private</span> <span class="keyword">final</span> ThreadLocal&lt;Queue&lt;Event&gt;&gt; queue =</span><br><span class="line">        <span class="keyword">new</span> ThreadLocal&lt;Queue&lt;Event&gt;&gt;() &#123;</span><br><span class="line">          <span class="meta">@Override</span></span><br><span class="line">          <span class="function"><span class="keyword">protected</span> Queue&lt;Event&gt; <span class="title">initialValue</span><span class="params">()</span> </span>&#123;</span><br><span class="line">            <span class="keyword">return</span> Queues.newArrayDeque();</span><br><span class="line">          &#125;</span><br><span class="line">        &#125;;</span><br><span class="line">      </span><br><span class="line">   <span class="keyword">private</span> <span class="keyword">final</span> ThreadLocal&lt;Boolean&gt; dispatching =</span><br><span class="line">       <span class="keyword">new</span> ThreadLocal&lt;Boolean&gt;() &#123;</span><br><span class="line">       <span class="meta">@Override</span></span><br><span class="line">       <span class="function"><span class="keyword">protected</span> Boolean <span class="title">initialValue</span><span class="params">()</span> </span>&#123;</span><br><span class="line">           <span class="keyword">return</span> <span class="keyword">false</span>;</span><br><span class="line">       &#125;</span><br><span class="line">    &#125;;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">dispatch</span><span class="params">(Object event, Iterator&lt;Subscriber&gt; subscribers)</span> </span>&#123;</span><br><span class="line">      checkNotNull(event);</span><br><span class="line">      checkNotNull(subscribers);</span><br><span class="line">      Queue&lt;Event&gt; queueForThread = queue.get();</span><br><span class="line">      queueForThread.offer(<span class="keyword">new</span> Event(event, subscribers));</span><br><span class="line"></span><br><span class="line">      <span class="keyword">if</span> (!dispatching.get()) &#123;</span><br><span class="line">        dispatching.set(<span class="keyword">true</span>);</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">          Event nextEvent;</span><br><span class="line">          <span class="keyword">while</span> ((nextEvent = queueForThread.poll()) != <span class="keyword">null</span>) &#123;</span><br><span class="line">            <span class="keyword">while</span> (nextEvent.subscribers.hasNext()) &#123;</span><br><span class="line">              nextEvent.subscribers.next().dispatchEvent(nextEvent.event);</span><br><span class="line">            &#125;</span><br><span class="line">          &#125;</span><br><span class="line">        &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">          dispatching.remove();</span><br><span class="line">          queue.remove();</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>demo</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">OtherSubscriber</span> </span>&#123;</span><br><span class="line">    <span class="meta">@Subscribe</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">printStatus</span><span class="params">(Integer status)</span></span>&#123;</span><br><span class="line">        System.out.println(<span class="string">"subscriber  success + status : "</span> + status);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">StatusSubscriber</span> </span>&#123;</span><br><span class="line">    <span class="meta">@Subscribe</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">printStatus</span><span class="params">(String status)</span></span>&#123;</span><br><span class="line">        System.out.println(<span class="string">"subscriber  success + status : "</span> + status);</span><br><span class="line">    &#125;</span><br><span class="line">&#125; </span><br><span class="line"><span class="comment">// guava的观察者机制相对于jdk来说使用起来更加简便，同时支持通知消息的分类及非阻塞方式的实现</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">main</span><span class="params">(String[] args)</span> </span>&#123;</span><br><span class="line">        EventBus eventBus = <span class="keyword">new</span> EventBus();</span><br><span class="line">        eventBus.register(<span class="keyword">new</span> StatusSubscriber());</span><br><span class="line">        eventBus.register(<span class="keyword">new</span> OtherSubscriber());</span><br><span class="line"></span><br><span class="line">        eventBus.post(<span class="string">"ssss"</span>);</span><br><span class="line">        eventBus.post(<span class="number">1</span>);</span><br><span class="line"></span><br><span class="line">        System.out.println(<span class="string">"end~~~~~~"</span>);</span><br><span class="line"> &#125;</span><br></pre></td></tr></table></figure>
+
+<ol start="3">
+<li>spring框架实现</li>
+</ol>
+<p>spring自带实现最大的优势是所有的对象都可以交给spring去管理。大体功能和guava类似。</p>
+<p>核心类：<strong>ApplicationEventPublisher</strong>（事件发布类）、<strong>ApplicationListener</strong>（事件监听器），代码如下</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="comment">// 事件</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">abstract</span> <span class="class"><span class="keyword">class</span> <span class="title">ApplicationEvent</span> <span class="keyword">extends</span> <span class="title">EventObject</span> </span>&#123;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">long</span> serialVersionUID = <span class="number">7099057708183571937L</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">final</span> <span class="keyword">long</span> timestamp;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="title">ApplicationEvent</span><span class="params">(Object source)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">super</span>(source);</span><br><span class="line">        <span class="keyword">this</span>.timestamp = System.currentTimeMillis();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">final</span> <span class="keyword">long</span> <span class="title">getTimestamp</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">this</span>.timestamp;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 事件发布者</span></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">interface</span> <span class="title">ApplicationEventPublisher</span> </span>&#123;</span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">publishEvent</span><span class="params">(ApplicationEvent event)</span></span>;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">publishEvent</span><span class="params">(Object event)</span></span>;</span><br><span class="line"></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 事件监听者</span></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">interface</span> <span class="title">ApplicationListener</span>&lt;<span class="title">E</span> <span class="keyword">extends</span> <span class="title">ApplicationEvent</span>&gt; <span class="keyword">extends</span> <span class="title">EventListener</span> </span>&#123;</span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * Handle an application event.</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> event the event to respond to</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">onApplicationEvent</span><span class="params">(E event)</span></span>;</span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>demo</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">EventNotify</span> <span class="keyword">implements</span> <span class="title">ApplicationContextAware</span> </span>&#123;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> ThreadPoolExecutor executor;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> ApplicationContext applicationContext;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">static</span> &#123;</span><br><span class="line">        executor = ThreadPoolExecutorFactory.of(<span class="string">"ApplicationEventSender"</span>,<span class="number">4</span>,<span class="number">10</span>,ThreadPoolExecutorFactory.CALLER_RUNER);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">notifyListener</span><span class="params">(<span class="keyword">final</span> ApplicationEvent event)</span></span>&#123;</span><br><span class="line">        <span class="keyword">if</span>(event != <span class="keyword">null</span>)&#123;</span><br><span class="line">            executor.submit(() -&gt; applicationContext.publishEvent(event));</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">setApplicationContext</span><span class="params">(ApplicationContext applicationContext)</span> </span>&#123;</span><br><span class="line">        EventNotify.applicationContext = applicationContext;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">EventNotify.notifyListener(<span class="keyword">new</span> UserRoleChangeEvent(<span class="keyword">this</span>,userRoleForm.getUid()));</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">UserRoleChangeListener</span> </span>&#123;</span><br><span class="line">    <span class="meta">@Autowired</span></span><br><span class="line">    <span class="keyword">private</span> UserRoleChangeHandler userRoleChangeHandler;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@EventListener</span>(classes = UserRoleChangeEvent<span class="class">.<span class="keyword">class</span>)</span></span><br><span class="line"><span class="class">    <span class="title">public</span> <span class="title">void</span> <span class="title">receiveEvent</span>(<span class="title">final</span> <span class="title">UserRoleChangeEvent</span> <span class="title">event</span>)</span>&#123;</span><br><span class="line">        log.info(<span class="string">"【UserRoleChange】event:&#123;&#125;"</span>, JSON.toJSONString(event));</span><br><span class="line">        userRoleChangeHandler.rolechange(event.getRoleId());</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>]]></content>
+      <categories>
+        <category>设计模式</category>
+      </categories>
+      <tags>
+        <tag>行为型模式</tag>
       </tags>
   </entry>
 </search>
