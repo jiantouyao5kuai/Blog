@@ -20,19 +20,19 @@
     var CONFIG = {"hostname":"lei-blog.tech","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
   </script>
 
-  <meta name="description" content="Spring-Bean什么是BeanDefinition">
+  <meta name="description" content="IoC发展简介RIchard 1983年提出好莱坞原则 -&gt; 1988年提出控制反转 -&gt; Martin Fowler 2004年提出IoC及DI的理解">
 <meta property="og:type" content="article">
-<meta property="og:title" content="Spring-Bean">
-<meta property="og:url" content="http://lei-blog.tech/posts/15099350/index.html">
+<meta property="og:title" content="Spring-Ioc简介">
+<meta property="og:url" content="http://lei-blog.tech/posts/b025469e/index.html">
 <meta property="og:site_name" content="jinlei&#39;s blog">
-<meta property="og:description" content="Spring-Bean什么是BeanDefinition">
+<meta property="og:description" content="IoC发展简介RIchard 1983年提出好莱坞原则 -&gt; 1988年提出控制反转 -&gt; Martin Fowler 2004年提出IoC及DI的理解">
 <meta property="og:locale" content="zh_CN">
-<meta property="article:published_time" content="2020-10-09T11:55:00.000Z">
-<meta property="article:modified_time" content="2020-10-09T11:59:09.814Z">
+<meta property="article:published_time" content="2020-10-27T07:30:18.000Z">
+<meta property="article:modified_time" content="2020-10-27T08:14:27.162Z">
 <meta property="article:author" content="Jin Lei">
 <meta name="twitter:card" content="summary">
 
-<link rel="canonical" href="http://lei-blog.tech/posts/15099350/">
+<link rel="canonical" href="http://lei-blog.tech/posts/b025469e/">
 
 
 <script id="page-configurations">
@@ -45,7 +45,7 @@
   };
 </script>
 
-  <title>Spring-Bean | jinlei's blog</title>
+  <title>Spring-Ioc简介 | jinlei's blog</title>
   
 
 
@@ -183,7 +183,7 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="http://lei-blog.tech/posts/15099350/">
+    <link itemprop="mainEntityOfPage" href="http://lei-blog.tech/posts/b025469e/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avator.jpeg">
@@ -196,7 +196,7 @@
     </span>
       <header class="post-header">
         <h1 class="post-title" itemprop="name headline">
-          Spring-Bean
+          Spring-Ioc简介
         </h1>
 
         <div class="post-meta">
@@ -207,7 +207,7 @@
               <span class="post-meta-item-text">发表于</span>
               
 
-              <time title="创建时间：2020-10-09 19:55:00 / 修改时间：19:59:09" itemprop="dateCreated datePublished" datetime="2020-10-09T19:55:00+08:00">2020-10-09</time>
+              <time title="创建时间：2020-10-27 15:30:18 / 修改时间：16:14:27" itemprop="dateCreated datePublished" datetime="2020-10-27T15:30:18+08:00">2020-10-27</time>
             </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -232,7 +232,7 @@
                 <i class="far fa-file-word"></i>
               </span>
                 <span class="post-meta-item-text">本文字数：</span>
-              <span>1.2k</span>
+              <span>851</span>
             </span>
             <span class="post-meta-item" title="阅读时长">
               <span class="post-meta-item-icon">
@@ -251,64 +251,167 @@
     <div class="post-body" itemprop="articleBody">
 
       
-        <h1 id="Spring-Bean"><a href="#Spring-Bean" class="headerlink" title="Spring-Bean"></a>Spring-Bean</h1><h4 id="什么是BeanDefinition"><a href="#什么是BeanDefinition" class="headerlink" title="什么是BeanDefinition"></a>什么是BeanDefinition</h4><p>BeanDefinition是Spring Framework中定义Bean的配置元信息接口，包含：</p>
-<ul>
-<li>Bean的类名</li>
-<li>Bean行为配置元素，如作用域、自动绑定的模式、生命周期回调等</li>
-<li>其他Bean引用</li>
-<li>配置设置</li>
-</ul>
-<p>可以通过BeanDefinitionBuilder构建或者通过BeanDefinition的实现类定义。</p>
-<h4 id="BeanDefinition元信息"><a href="#BeanDefinition元信息" class="headerlink" title="BeanDefinition元信息"></a>BeanDefinition元信息</h4><ul>
-<li>Class：Bean全类名，必须是具体类，不能用抽象类或接口</li>
-<li>Name：Bean的名称或ID</li>
-<li>Scope：Bean的作用域</li>
-<li>Constructor arguments：Bean构造器参数（用于依赖注入）</li>
-<li>Properties：Bean属性设置（用于依赖注入）</li>
-<li>Autowiring mode：Bean自动绑定模式（byName/byType）</li>
-<li>Lazy initialization mdode：Bean延迟初始化模式（延迟/非延迟）</li>
-<li>Initialization method：Bean初始化回调方法名称</li>
-<li>Destruction method：Bean销毁回调方法名称</li>
-</ul>
-<h4 id="为什么需要别名"><a href="#为什么需要别名" class="headerlink" title="为什么需要别名"></a>为什么需要别名</h4><p>场景化使用时会更加方便，名称含义也更清晰</p>
-<h4 id="如何将BeanDefinition注册到IOC容器"><a href="#如何将BeanDefinition注册到IOC容器" class="headerlink" title="如何将BeanDefinition注册到IOC容器"></a>如何将BeanDefinition注册到IOC容器</h4><ul>
-<li>xml配置</li>
-<li>spring-api操作：BeanDefitionRegistry#registryBeanDefinition</li>
-<li>注解配置<ul>
-<li>通过@Bean方式定义：需要搭配@Configuration使用。加载第三方组件库中的类是没有办法加@Component直接，所以使用@Bean</li>
-<li>通过@Component方式定义</li>
-<li>通过@Import方式导入</li>
+        <h4 id="IoC发展简介"><a href="#IoC发展简介" class="headerlink" title="IoC发展简介"></a>IoC发展简介</h4><p>RIchard 1983年提出好莱坞原则 -&gt; 1988年提出控制反转 -&gt; Martin Fowler 2004年提出IoC及DI的理解</p>
+<h4 id="IoC主要实现策略"><a href="#IoC主要实现策略" class="headerlink" title="IoC主要实现策略"></a>IoC主要实现策略</h4><ul>
+<li>依赖查找</li>
+<li>依赖注入<ul>
+<li>构造器注入</li>
+<li>参数注入</li>
+<li>set注入</li>
+<li>接口注入</li>
 </ul>
 </li>
 </ul>
-<h4 id="bean实例化的方式"><a href="#bean实例化的方式" class="headerlink" title="bean实例化的方式"></a>bean实例化的方式</h4><ul>
-<li>通过构造器 (XML、Java注解、Java API)</li>
-<li>通过静态工厂 (XML、Java API)</li>
-<li>通过Bean工厂方法 (XML、Java API)</li>
-<li>通过FactoryBean (XML、Java注解、Java API)</li>
-<li>通过ServiceLoaderFactoryBean (XML、Java注解、Java API)</li>
-<li>通过AutowireCapableBeanFactory#createBean （只能创建实例，不能创建接口）</li>
-<li>通过BeanDefinitionREgistry#registerBeanDefinition</li>
+<h4 id="IoC容器的职责"><a href="#IoC容器的职责" class="headerlink" title="IoC容器的职责"></a>IoC容器的职责</h4><ul>
+<li>实现与执行的任务之间的解耦</li>
+<li>专注于业务实现</li>
+<li>减少模块之间的关联，不需要知道其他模块的实现方式</li>
+<li>好莱坞原则</li>
+<li>通用职责</li>
+<li>依赖处理<ul>
+<li>依赖查找</li>
+<li>依赖注入</li>
 </ul>
-<h4 id="bean初始化的方式"><a href="#bean初始化的方式" class="headerlink" title="bean初始化的方式"></a>bean初始化的方式</h4><ul>
-<li>@PostConstruct</li>
-<li>InitalizingBean</li>
-<li>自定义初始化方法</li>
+</li>
+<li>生命周期管理<ul>
+<li>容器</li>
+<li>托管的资源（Java Beans或其他资源）</li>
+<li>配置</li>
 </ul>
-<p>执行顺序 @PostConstruct &gt; InitalizingBean &gt; 自定义初始化方法</p>
-<h4 id="bean延迟初始化"><a href="#bean延迟初始化" class="headerlink" title="bean延迟初始化"></a>bean延迟初始化</h4><ul>
-<li>@LazyInit</li>
-<li>xml配置</li>
+</li>
+<li>容器<ul>
+<li>外部化配置</li>
+<li>托管的资源（Java Beans或其他资源）</li>
 </ul>
-<p>延迟初始化不影响bean的依赖查找和依赖注入</p>
-<h4 id="销毁bean的基本操作"><a href="#销毁bean的基本操作" class="headerlink" title="销毁bean的基本操作"></a>销毁bean的基本操作</h4><ul>
-<li>@PreDestory</li>
-<li>DisposableBean</li>
-<li>自定义销毁方法</li>
+</li>
 </ul>
-<p>执行顺序：@PreDestory &gt; DisposableBean &gt; 自定义销毁方法</p>
-<p>在applicationContext.close()销毁bean时触发</p>
-<h4 id="bean垃圾回收"><a href="#bean垃圾回收" class="headerlink" title="bean垃圾回收"></a>bean垃圾回收</h4><p>在spring上下文关闭之后，spring的bean会被jvm回收</p>
+<h4 id="IoC容器的实现"><a href="#IoC容器的实现" class="headerlink" title="IoC容器的实现"></a>IoC容器的实现</h4><ul>
+<li>Java SE<ul>
+<li>Java Beans</li>
+<li>Java ServiceLoader SPI</li>
+<li>JNDI(Java Naming and Directory Interface)</li>
+</ul>
+</li>
+<li>Java EE<ul>
+<li>EJB</li>
+<li>Servlet</li>
+</ul>
+</li>
+<li>开源框架<ul>
+<li>Apache Avalon</li>
+<li>PicoContainer</li>
+<li>Google Guice</li>
+<li>Spring Framework</li>
+</ul>
+</li>
+</ul>
+<h4 id="传统IoC容器的实现"><a href="#传统IoC容器的实现" class="headerlink" title="传统IoC容器的实现"></a>传统IoC容器的实现</h4><ul>
+<li>Java Beans<ul>
+<li>特性：<ul>
+<li>依赖查找</li>
+<li>生命周期管理</li>
+<li>配置元信息</li>
+<li>事件</li>
+<li>自定义</li>
+<li>资源管理</li>
+<li>持久化</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>规范<ul>
+<li>JavaBeans</li>
+<li>BeanContext</li>
+</ul>
+</li>
+</ul>
+<h4 id="轻量级IoC容器"><a href="#轻量级IoC容器" class="headerlink" title="轻量级IoC容器"></a>轻量级IoC容器</h4><ul>
+<li><p>轻量级容器的特征</p>
+<ul>
+<li>容器可以管理代码的运行</li>
+<li>快速启动</li>
+<li>不需要特殊的发布步骤</li>
+<li>轻量级的内存占用，最小化API依赖</li>
+<li>可管理</li>
+</ul>
+</li>
+<li><p>优点</p>
+<ul>
+<li>最大化代码复用</li>
+<li>更好的面向对象</li>
+<li>更好的产品化</li>
+<li>更好的测试性</li>
+</ul>
+</li>
+</ul>
+<h4 id="依赖查找-VS-依赖注入"><a href="#依赖查找-VS-依赖注入" class="headerlink" title="依赖查找 VS 依赖注入"></a>依赖查找 VS 依赖注入</h4><table>
+<thead>
+<tr>
+<th>类型</th>
+<th>依赖处理</th>
+<th>实现便利性</th>
+<th>代码侵入型</th>
+<th>API依赖性</th>
+<th>可读性</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>依赖查找</td>
+<td>主动获取</td>
+<td>相对繁琐</td>
+<td>侵入业务逻辑</td>
+<td>依赖容器API</td>
+<td>良好</td>
+</tr>
+<tr>
+<td>依赖注入</td>
+<td>被动提供</td>
+<td>相对便利</td>
+<td>低侵入性</td>
+<td>不依赖容器API</td>
+<td>一般</td>
+</tr>
+</tbody></table>
+<h4 id="构造器注入-VS-Setter注入"><a href="#构造器注入-VS-Setter注入" class="headerlink" title="构造器注入 VS Setter注入"></a>构造器注入 VS Setter注入</h4><p>Spring团队推荐使用构造注入</p>
+<ul>
+<li><p>构造器注入</p>
+<ul>
+<li><p>优点</p>
+<ul>
+<li>完全初始化的对象，对象更安全且更易维护</li>
+<li>减少代码量</li>
+</ul>
+</li>
+<li><p>缺点</p>
+<ul>
+<li>通用性降低</li>
+<li>构造器名称语义可读性差</li>
+<li>太多参数会使代码不整洁</li>
+<li>继承问题</li>
+<li>可选参数支持性差</li>
+<li>测试困难</li>
+<li>对象构造完成后，参数不可变</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p>setter注入</p>
+<ul>
+<li>优点<ul>
+<li>JavaBeans IDE支持更好</li>
+<li>JavaBeans 属性是自文档的方式</li>
+<li>可以做一些类型转换</li>
+<li>可以修改属性值</li>
+</ul>
+</li>
+<li>缺点<ul>
+<li>没有办法确认set的顺序</li>
+<li>对象在使用前可能是未初始化完全的</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
 
     </div>
 
@@ -324,7 +427,7 @@
   </li>
   <li class="post-copyright-link">
     <strong>本文链接：</strong>
-    <a href="http://lei-blog.tech/posts/15099350/" title="Spring-Bean">http://lei-blog.tech/posts/15099350/</a>
+    <a href="http://lei-blog.tech/posts/b025469e/" title="Spring-Ioc简介">http://lei-blog.tech/posts/b025469e/</a>
   </li>
   <li class="post-copyright-license">
     <strong>版权声明： </strong>本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> 许可协议。转载请注明出处！
@@ -341,13 +444,10 @@
         
     <div class="post-nav">
       <div class="post-nav-item">
-    <a href="/posts/10e7a6ee/" rel="prev" title="消息队列设计精要">
-      <i class="fa fa-chevron-left"></i> 消息队列设计精要
+    <a href="/posts/15099350/" rel="prev" title="Spring-Bean">
+      <i class="fa fa-chevron-left"></i> Spring-Bean
     </a></div>
-      <div class="post-nav-item">
-    <a href="/posts/b025469e/" rel="next" title="Spring-Ioc简介">
-      Spring-Ioc简介 <i class="fa fa-chevron-right"></i>
-    </a></div>
+      <div class="post-nav-item"></div>
     </div>
       </footer>
     
@@ -406,7 +506,7 @@
 
       <!--noindex-->
       <div class="post-toc-wrap sidebar-panel">
-          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#Spring-Bean"><span class="nav-number">1.</span> <span class="nav-text">Spring-Bean</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#什么是BeanDefinition"><span class="nav-number">1.0.0.1.</span> <span class="nav-text">什么是BeanDefinition</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#BeanDefinition元信息"><span class="nav-number">1.0.0.2.</span> <span class="nav-text">BeanDefinition元信息</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#为什么需要别名"><span class="nav-number">1.0.0.3.</span> <span class="nav-text">为什么需要别名</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#如何将BeanDefinition注册到IOC容器"><span class="nav-number">1.0.0.4.</span> <span class="nav-text">如何将BeanDefinition注册到IOC容器</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#bean实例化的方式"><span class="nav-number">1.0.0.5.</span> <span class="nav-text">bean实例化的方式</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#bean初始化的方式"><span class="nav-number">1.0.0.6.</span> <span class="nav-text">bean初始化的方式</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#bean延迟初始化"><span class="nav-number">1.0.0.7.</span> <span class="nav-text">bean延迟初始化</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#销毁bean的基本操作"><span class="nav-number">1.0.0.8.</span> <span class="nav-text">销毁bean的基本操作</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#bean垃圾回收"><span class="nav-number">1.0.0.9.</span> <span class="nav-text">bean垃圾回收</span></a></li></ol></li></ol></li></ol></li></ol></div>
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-4"><a class="nav-link" href="#IoC发展简介"><span class="nav-number">1.</span> <span class="nav-text">IoC发展简介</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#IoC主要实现策略"><span class="nav-number">2.</span> <span class="nav-text">IoC主要实现策略</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#IoC容器的职责"><span class="nav-number">3.</span> <span class="nav-text">IoC容器的职责</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#IoC容器的实现"><span class="nav-number">4.</span> <span class="nav-text">IoC容器的实现</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#传统IoC容器的实现"><span class="nav-number">5.</span> <span class="nav-text">传统IoC容器的实现</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#轻量级IoC容器"><span class="nav-number">6.</span> <span class="nav-text">轻量级IoC容器</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#依赖查找-VS-依赖注入"><span class="nav-number">7.</span> <span class="nav-text">依赖查找 VS 依赖注入</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#构造器注入-VS-Setter注入"><span class="nav-number">8.</span> <span class="nav-text">构造器注入 VS Setter注入</span></a></li></ol></div>
       </div>
       <!--/noindex-->
 
